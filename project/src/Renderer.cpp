@@ -40,27 +40,66 @@ void Renderer::Update(Timer* pTimer)
 void Renderer::Render()
 {
 	//@START
+	std::vector<Vertex> vertices_nds
+	{
+		Vertex{{0.f, .5f, 1.f}},
+		Vertex{{.5f, -.5f, 1.f}},
+		Vertex{{-.5f, -.5f, 1.f}},
+	};
+
+	std::vector<Vertex> vertices_screen;
+	vertices_screen.resize(vertices_nds.size());
+	VertexTransformationFunction(vertices_nds, vertices_screen);
+	
 	//Lock BackBuffer
 	SDL_LockSurface(m_pBackBuffer);
 
 	//RENDER LOGIC
-	for (int px{}; px < m_Width; ++px)
+	for (int inx = 0; inx < vertices_screen.size(); inx+=3)
 	{
-		for (int py{}; py < m_Height; ++py)
+		for (int px{}; px < m_Width; ++px)
 		{
-			float gradient = px / static_cast<float>(m_Width);
-			gradient += py / static_cast<float>(m_Width);
-			gradient /= 2.0f;
+			for (int py{}; py < m_Height; ++py)
+			{
+				ColorRGB finalColor{ 1, 1, 1};
+				
+				auto v0 = vertices_screen[inx].position;
+				auto v1 = vertices_screen[inx+1].position;
+				auto v2 = vertices_screen[inx+2].position;
 
-			ColorRGB finalColor{ gradient, gradient, gradient };
+				auto P = Vector2(px + 0.5f, py + 0.5f);
+				
+				auto e1 = v1 - v0;
+				auto p1 = P - Vector2(v0.x, v0.y);
+				
+				auto e2 = v2 - v1;
+				auto p2 = P - Vector2(v1.x, v1.y);
+				
+				auto e3 = v0 - v2;
+				auto p3 = P - Vector2(v2.x, v2.y);
+				
+				if (Vector2::Cross(Vector2(e1.x, e1.y), p1) < 0.f ||
+					Vector2::Cross(Vector2(e2.x, e2.y), p2) < 0.f ||
+					Vector2::Cross(Vector2(e3.x, e3.y), p3) < 0.f)
+				{
+					continue;
+				}
+					
+				
+				//float gradient = px / static_cast<float>(m_Width);
+				//gradient += py / static_cast<float>(m_Width);
+				//gradient /= 2.0f;
 
-			//Update Color in Buffer
-			finalColor.MaxToOne();
+				//ColorRGB finalColor{ gradient, gradient, gradient };
 
-			m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-				static_cast<uint8_t>(finalColor.r * 255),
-				static_cast<uint8_t>(finalColor.g * 255),
-				static_cast<uint8_t>(finalColor.b * 255));
+				//Update Color in Buffer
+				finalColor.MaxToOne();
+
+				m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+					static_cast<uint8_t>(finalColor.r * 255),
+					static_cast<uint8_t>(finalColor.g * 255),
+					static_cast<uint8_t>(finalColor.b * 255));
+			}
 		}
 	}
 
@@ -73,7 +112,13 @@ void Renderer::Render()
 
 void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_in, std::vector<Vertex>& vertices_out) const
 {
-	//Todo > W1 Projection Stage
+	for (int inx = 0; inx < vertices_in.size(); ++inx)
+	{
+		vertices_out[inx].position.x = (vertices_in[inx].position.x + 1) / 2.f * m_Width;
+		vertices_out[inx].position.y = (1 - vertices_in[inx].position.y) / 2.f * m_Height;
+		vertices_out[inx].position.z = vertices_in[inx].position.z;
+		vertices_out[inx].color = vertices_in[inx].color;
+	}
 }
 
 bool Renderer::SaveBufferToImage() const
