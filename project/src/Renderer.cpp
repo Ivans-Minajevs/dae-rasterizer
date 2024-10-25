@@ -70,25 +70,24 @@ void Renderer::Render()
 	//RENDER LOGIC
 	for (int inx = 0; inx < vertices_screen.size(); inx+=3)
 	{
+		auto v0 = vertices_screen[inx].position;
+		auto v1 = vertices_screen[inx+1].position;
+		auto v2 = vertices_screen[inx+2].position;
+
+		auto e0 = v2 - v1;
+		auto e1 = v0 - v2;
+		auto e2 = v1 - v0;
+		
 		for (int px{}; px < m_Width; ++px)
 		{
 			for (int py{}; py < m_Height; ++py)
 			{
 				ColorRGB finalColor{ 0, 0, 0};
-
-				auto v0 = vertices_screen[inx].position;
-				auto v1 = vertices_screen[inx+1].position;
-				auto v2 = vertices_screen[inx+2].position;
 				
 				auto P = Vector2(px + 0.5f, py + 0.5f);
 				
-				auto e0 = v2 - v1;
 				auto p0 = P - Vector2(v1.x, v1.y);
-				
-				auto e1 = v0 - v2;
 				auto p1 = P - Vector2(v2.x, v2.y);
-				
-				auto e2 = v1 - v0;
 				auto p2 = P - Vector2(v0.x, v0.y);
 
 				auto weightP0 = Vector2::Cross(Vector2(e0.x, e0.y), p0);
