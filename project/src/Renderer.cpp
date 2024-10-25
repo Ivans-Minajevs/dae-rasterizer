@@ -42,9 +42,9 @@ void Renderer::Render()
 	//@START
 	std::vector<Vertex> vertices_world
 	{
-		{{0.f, 2.f, 0.f}},
-		{{1.f, 0.f, 0.f}},
-		{{-1.f, 0.f, 0.f}}
+		{{0.f, 4.f, 2.f}, {1, 0, 0}},
+		{{3.f, -2.f, 2.f},{0, 1, 0}},
+		{{-3.f, -2.f, 2.f}, {0, 0, 1}}
 	};
 
 	std::vector<Vertex> vertices_screen;
@@ -61,7 +61,7 @@ void Renderer::Render()
 		{
 			for (int py{}; py < m_Height; ++py)
 			{
-				ColorRGB finalColor{ 1, 1, 1};
+				ColorRGB finalColor{ 0, 0, 0};
 
 				auto v0 = vertices_screen[inx].position;
 				auto v1 = vertices_screen[inx+1].position;
@@ -69,20 +69,26 @@ void Renderer::Render()
 				
 				auto P = Vector2(px + 0.5f, py + 0.5f);
 				
-				auto e1 = v1 - v0;
-				auto p1 = P - Vector2(v0.x, v0.y);
+				auto e0 = v2 - v1;
+				auto p0 = P - Vector2(v1.x, v1.y);
 				
-				auto e2 = v2 - v1;
-				auto p2 = P - Vector2(v1.x, v1.y);
+				auto e1 = v0 - v2;
+				auto p1 = P - Vector2(v2.x, v2.y);
 				
-				auto e3 = v0 - v2;
-				auto p3 = P - Vector2(v2.x, v2.y);
-				
-				if (Vector2::Cross(Vector2(e1.x, e1.y), p1) < 0.f ||
-					Vector2::Cross(Vector2(e2.x, e2.y), p2) < 0.f ||
-					Vector2::Cross(Vector2(e3.x, e3.y), p3) < 0.f)
+				auto e2 = v1 - v0;
+				auto p2 = P - Vector2(v0.x, v0.y);
+
+				auto weightP0 = Vector2::Cross(Vector2(e0.x, e0.y), p0);
+				auto weightP1 = Vector2::Cross(Vector2(e1.x, e1.y), p1);
+				auto weightP2 = Vector2::Cross(Vector2(e2.x, e2.y), p2);
+				if (weightP0 >= 0 &&
+					weightP1 >= 0 &&
+					weightP2 >= 0)
 				{
-					finalColor = ColorRGB{0, 0, 0};
+					auto totalArea = weightP0 + weightP1 + weightP2;
+					finalColor = vertices_screen[inx].color * (weightP0 / totalArea) +
+								 vertices_screen[inx+1].color * (weightP1 / totalArea) +
+								 vertices_screen[inx+2].color * (weightP2 / totalArea);
 				}
 					
 				
