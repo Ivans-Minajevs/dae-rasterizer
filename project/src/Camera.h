@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <iostream>
 #include <SDL_keyboard.h>
 #include <SDL_mouse.h>
 
@@ -43,11 +44,10 @@ namespace dae
 
 		void CalculateViewMatrix()
 		{
-			//TODO W1
-			//ONB => invViewMatrix
-			//Inverse(ONB) => ViewMatrix
+			right = Vector3::Cross(Vector3::UnitY, forward).Normalized();
+			up = Vector3::Cross(forward, right).Normalized();
 
-			//ViewMatrix => Matrix::CreateLookAtLH(...) [not implemented yet]
+			viewMatrix = Matrix::CreateLookAtLH(origin, forward, up);
 			//DirectX Implementation => https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixlookatlh
 		}
 
@@ -67,6 +67,7 @@ namespace dae
 			//...
 
 			//Update Matrices
+			
 			CalculateViewMatrix();
 			CalculateProjectionMatrix(); //Try to optimize this - should only be called once or when fov/aspectRatio changes
 		}

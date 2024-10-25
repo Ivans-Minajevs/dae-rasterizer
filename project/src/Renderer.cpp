@@ -40,16 +40,16 @@ void Renderer::Update(Timer* pTimer)
 void Renderer::Render()
 {
 	//@START
-	std::vector<Vertex> vertices_nds
+	std::vector<Vertex> vertices_world
 	{
-		Vertex{{0.f, .5f, 1.f}},
-		Vertex{{.5f, -.5f, 1.f}},
-		Vertex{{-.5f, -.5f, 1.f}},
+		{{0.f, 2.f, 0.f}},
+		{{1.f, 0.f, 0.f}},
+		{{-1.f, 0.f, 0.f}}
 	};
 
 	std::vector<Vertex> vertices_screen;
-	vertices_screen.resize(vertices_nds.size());
-	VertexTransformationFunction(vertices_nds, vertices_screen);
+	vertices_screen.resize(vertices_world.size());
+	VertexTransformationFunction(vertices_world, vertices_screen);
 	
 	//Lock BackBuffer
 	SDL_LockSurface(m_pBackBuffer);
@@ -62,11 +62,11 @@ void Renderer::Render()
 			for (int py{}; py < m_Height; ++py)
 			{
 				ColorRGB finalColor{ 1, 1, 1};
-				
+
 				auto v0 = vertices_screen[inx].position;
 				auto v1 = vertices_screen[inx+1].position;
 				auto v2 = vertices_screen[inx+2].position;
-
+				
 				auto P = Vector2(px + 0.5f, py + 0.5f);
 				
 				auto e1 = v1 - v0;
@@ -82,7 +82,7 @@ void Renderer::Render()
 					Vector2::Cross(Vector2(e2.x, e2.y), p2) < 0.f ||
 					Vector2::Cross(Vector2(e3.x, e3.y), p3) < 0.f)
 				{
-					continue;
+					finalColor = ColorRGB{0, 0, 0};
 				}
 					
 				
@@ -114,9 +114,19 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 {
 	for (int inx = 0; inx < vertices_in.size(); ++inx)
 	{
-		vertices_out[inx].position.x = (vertices_in[inx].position.x + 1) / 2.f * m_Width;
-		vertices_out[inx].position.y = (1 - vertices_in[inx].position.y) / 2.f * m_Height;
-		vertices_out[inx].position.z = vertices_in[inx].position.z;
+		auto viewSpaceMatrix = m_Camera.viewMatrix.TransformPoint(vertices_in[inx].position);
+
+		Vector3 projectionSpaceMatrix;
+		projectionSpaceMatrix.x = viewSpaceMatrix.x / viewSpaceMatrix.z;
+		projectionSpaceMatrix.y = viewSpaceMatrix.y / viewSpaceMatrix.z;
+		projectionSpaceMatrix.z = viewSpaceMatrix.z;
+		
+		projectionSpaceMatrix.x = projectionSpaceMatrix.x / ((float(m_Width)/m_Height) * m_Camera.fov);
+		projectionSpaceMatrix.y = projectionSpaceMatrix.y / m_Camera.fov;
+		
+		vertices_out[inx].position.x = (projectionSpaceMatrix.x + 1) / 2.f * m_Width;
+		vertices_out[inx].position.y = (1 - projectionSpaceMatrix.y) / 2.f * m_Height;
+		vertices_out[inx].position.z = projectionSpaceMatrix.z;
 		vertices_out[inx].color = vertices_in[inx].color;
 	}
 }
