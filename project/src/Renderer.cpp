@@ -21,7 +21,8 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	m_pBackBuffer = SDL_CreateRGBSurface(0, m_Width, m_Height, 32, 0, 0, 0, 0);
 	m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
 
-	//m_pDepthBufferPixels = new float[m_Width * m_Height];
+	m_pDepthBufferPixels = new float[m_Width * m_Height];
+	
 
 	//Initialize Camera
 	m_Camera.Initialize(60.f, { .0f,.0f,-10.f });
@@ -29,7 +30,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 
 Renderer::~Renderer()
 {
-	//delete[] m_pDepthBufferPixels;
+	delete[] m_pDepthBufferPixels;
 }
 
 void Renderer::Update(Timer* pTimer)
@@ -40,8 +41,20 @@ void Renderer::Update(Timer* pTimer)
 void Renderer::Render()
 {
 	//@START
+	for (int i = 0; i < m_Width * m_Height; ++i) {
+		m_pDepthBufferPixels[i] = std::numeric_limits<float>::max();
+	}
+	
+	SDL_Color clearColor = {100, 100, 100, 255};
+	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
+	SDL_FillRect(m_pBackBuffer, nullptr, color);
+	
 	std::vector<Vertex> vertices_world
 	{
+		{{0.f, 2.f, 0.f}, {1, 0, 0}},
+		{{1.5f, -1.f, 0.f},{1, 0, 0}},
+		{{-1.5f, -1.f, 0.f}, {1, 0, 0}},
+		
 		{{0.f, 4.f, 2.f}, {1, 0, 0}},
 		{{3.f, -2.f, 2.f},{0, 1, 0}},
 		{{-3.f, -2.f, 2.f}, {0, 0, 1}}
@@ -85,10 +98,34 @@ void Renderer::Render()
 					weightP1 >= 0 &&
 					weightP2 >= 0)
 				{
+					// Calculate total area
 					auto totalArea = weightP0 + weightP1 + weightP2;
-					finalColor = vertices_screen[inx].color * (weightP0 / totalArea) +
-								 vertices_screen[inx+1].color * (weightP1 / totalArea) +
-								 vertices_screen[inx+2].color * (weightP2 / totalArea);
+					
+					// Calculate barycentric coordinates
+					float interpolationScale0 = weightP0 / totalArea;
+					float interpolationScale1 = weightP1 / totalArea;
+					float interpolationScale2 = weightP2 / totalArea;
+
+					// Interpolate depth
+					float interpolatedDepth = v0.z * interpolationScale0 +
+											  v1.z * interpolationScale1 +
+											  v2.z * interpolationScale2;
+					// Depth test
+					int pixelIndex = px + (py * m_Width);
+					if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
+					{
+						m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
+						finalColor = vertices_screen[inx].color * interpolationScale0  +
+									 vertices_screen[inx+1].color * interpolationScale1 +
+									 vertices_screen[inx+2].color * interpolationScale2;
+						finalColor.MaxToOne();
+
+						m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+							static_cast<uint8_t>(finalColor.r * 255),
+							static_cast<uint8_t>(finalColor.g * 255),
+							static_cast<uint8_t>(finalColor.b * 255));
+					}
+					
 				}
 					
 				
@@ -99,12 +136,7 @@ void Renderer::Render()
 				//ColorRGB finalColor{ gradient, gradient, gradient };
 
 				//Update Color in Buffer
-				finalColor.MaxToOne();
-
-				m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-					static_cast<uint8_t>(finalColor.r * 255),
-					static_cast<uint8_t>(finalColor.g * 255),
-					static_cast<uint8_t>(finalColor.b * 255));
+				
 			}
 		}
 	}
