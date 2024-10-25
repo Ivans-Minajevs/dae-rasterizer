@@ -74,13 +74,18 @@ void Renderer::Render()
 		auto v1 = vertices_screen[inx+1].position;
 		auto v2 = vertices_screen[inx+2].position;
 
+		int minX = std::max(0, static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x}))));
+		int maxX = std::min(m_Width, static_cast<int>(std::ceil(std::max({v0.x, v1.x, v2.x}))));
+		int minY = std::max(0, static_cast<int>(std::floor(std::min({v0.y, v1.y, v2.y}))));
+		int maxY = std::min(m_Height, static_cast<int>(std::ceil(std::max({v0.y, v1.y, v2.y}))));
+		
 		auto e0 = v2 - v1;
 		auto e1 = v0 - v2;
 		auto e2 = v1 - v0;
 		
-		for (int px{}; px < m_Width; ++px)
+		for (int px = minX; px < maxX; ++px)
 		{
-			for (int py{}; py < m_Height; ++py)
+			for (int py = minY; py < maxY; ++py)
 			{
 				ColorRGB finalColor{ 0, 0, 0};
 				
