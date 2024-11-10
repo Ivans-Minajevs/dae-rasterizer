@@ -38,7 +38,7 @@ void Renderer::Update(Timer* pTimer)
 	m_Camera.Update(pTimer);
 }
 
-void Renderer::Render()
+void Renderer::Render() const
 {
 	//@START
 	for (int i = 0; i < m_Width * m_Height; ++i) {
@@ -49,138 +49,118 @@ void Renderer::Render()
 	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
 
-	std::vector<Vector3> vertices
-	{
-		{-3.f, 3.f, -2.f},
-		{0.f, 3.f, -2.f},
-		{3.f, 3.f, -2.f},
-		{-3.f, 0.f, -2.f},
-		{0.f, 0.f, -2.f},
-		{3.f, 0.f, -2.f},
-		{-3.f, -3.f, -2.f},
-		{0.f, -3.f, -2.f},
-		{3.f, -3.f, -2.f}
+	
+	std::vector<Mesh> meshes_world = {
+		Mesh {
+			{
+				Vertex{ { -3, 3, -2 }},
+				Vertex{	{ 0, 3, -2 }},
+				Vertex{ { 3, 3, -2 }},
+				Vertex{ { -3, 0, -2 }},
+				Vertex{ { 0, 0, -2 }},
+				Vertex{ { 3, 0, -2 }},
+				Vertex{ { -3, -3, -2 }},
+				Vertex{ { 0, -3, -2 }},
+				Vertex{ { 3, -3, -2 }}
+			},
+			{ 3, 0, 4, 1, 5, 2,
+				2, 6,
+				6, 3, 7, 4, 8, 5 },
+			PrimitiveTopology::TriangleStrip
+		}
 	};
-	std::vector<Vertex> vertices_world
-	{
-		{vertices[3], {1, 1, 1}},
-		{vertices[0],{1, 1, 1}},
-		{vertices[4], {1, 1, 1}},
-		
-		{vertices[0], {1, 1, 1}},
-		{vertices[1],{1, 1, 1}},
-		{vertices[4], {1, 1, 1}},
-		
-		{vertices[4], {1, 1, 1}},
-		{vertices[1],{1, 1, 1}},
-		{vertices[5], {1, 1, 1}},
-
-		{vertices[1], {1, 1, 1}},
-		{vertices[2],{1, 1, 1}},
-		{vertices[5], {1, 1, 1}},
-
-		{vertices[6], {1, 1, 1}},
-		{vertices[3],{1, 1, 1}},
-		{vertices[7], {1, 1, 1}},
-
-		{vertices[3], {1, 1, 1}},
-		{vertices[4],{1, 1, 1}},
-		{vertices[7], {1, 1, 1}},
-
-		{vertices[7], {1, 1, 1}},
-		{vertices[4],{1, 1, 1}},
-		{vertices[8], {1, 1, 1}},
-		
-		{vertices[4], {1, 1, 1}},
-		{vertices[5],{1, 1, 1}},
-		{vertices[8], {1, 1, 1}},
-		
-	};
-
-	std::vector<Vertex> vertices_screen;
-	vertices_screen.resize(vertices_world.size());
-	VertexTransformationFunction(vertices_world, vertices_screen);
+	
+	
 	
 	//Lock BackBuffer
 	SDL_LockSurface(m_pBackBuffer);
 
 	//RENDER LOGIC
-	for (int inx = 0; inx < vertices_screen.size(); inx+=3)
+	for (Mesh& mesh: meshes_world)
 	{
-		auto v0 = vertices_screen[inx].position;
-		auto v1 = vertices_screen[inx+1].position;
-		auto v2 = vertices_screen[inx+2].position;
-
-		int minX = std::max(0, static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x}))));
-		int maxX = std::min(m_Width, static_cast<int>(std::ceil(std::max({v0.x, v1.x, v2.x}))));
-		int minY = std::max(0, static_cast<int>(std::floor(std::min({v0.y, v1.y, v2.y}))));
-		int maxY = std::min(m_Height, static_cast<int>(std::ceil(std::max({v0.y, v1.y, v2.y}))));
+		VertexTransformationFunction(mesh);
 		
-		auto e0 = v2 - v1;
-		auto e1 = v0 - v2;
-		auto e2 = v1 - v0;
-		
-		for (int px = minX; px < maxX; ++px)
+		bool isTriangleList = (mesh.primitiveTopology == PrimitiveTopology::TriangleList);
+		for (int inx = 0; inx < mesh.indices.size() - 2; inx += (isTriangleList ? 3 : 1))
 		{
-			for (int py = minY; py < maxY; ++py)
+			auto v0 = mesh.vertices_out[mesh.indices[inx]].position;
+			auto v1 = mesh.vertices_out[mesh.indices[inx+1]].position;
+			auto v2 = mesh.vertices_out[mesh.indices[inx+2]].position;
+			
+			if (mesh.primitiveTopology == PrimitiveTopology::TriangleStrip)
 			{
-				ColorRGB finalColor{ 0, 0, 0};
-				
-				auto P = Vector2(px + 0.5f, py + 0.5f);
-				
-				auto p0 = P - Vector2(v1.x, v1.y);
-				auto p1 = P - Vector2(v2.x, v2.y);
-				auto p2 = P - Vector2(v0.x, v0.y);
-
-				auto weightP0 = Vector2::Cross(Vector2(e0.x, e0.y), p0);
-				auto weightP1 = Vector2::Cross(Vector2(e1.x, e1.y), p1);
-				auto weightP2 = Vector2::Cross(Vector2(e2.x, e2.y), p2);
-				if (weightP0 >= 0 &&
-					weightP1 >= 0 &&
-					weightP2 >= 0)
+				if (v0 == v1 || v1 == v2 || v2 == v0)
 				{
-					// Calculate total area
-					auto totalArea = weightP0 + weightP1 + weightP2;
-					
-					// Calculate barycentric coordinates
-					float interpolationScale0 = weightP0 / totalArea;
-					float interpolationScale1 = weightP1 / totalArea;
-					float interpolationScale2 = weightP2 / totalArea;
-
-					// Interpolate depth
-					float interpolatedDepth = v0.z * interpolationScale0 +
-											  v1.z * interpolationScale1 +
-											  v2.z * interpolationScale2;
-					// Depth test
-					int pixelIndex = px + (py * m_Width);
-					if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
-					{
-						m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
-						finalColor = vertices_screen[inx].color * interpolationScale0  +
-									 vertices_screen[inx+1].color * interpolationScale1 +
-									 vertices_screen[inx+2].color * interpolationScale2;
-						finalColor.MaxToOne();
-
-						m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-							static_cast<uint8_t>(finalColor.r * 255),
-							static_cast<uint8_t>(finalColor.g * 255),
-							static_cast<uint8_t>(finalColor.b * 255));
-					}
-					
+					continue;
 				}
+				if (inx % 2 != 0)
+				{
+					std::swap(v1, v2);
+				}
+			}
+			
+
+			int minX = std::max(0, static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x}))));
+			int maxX = std::min(m_Width, static_cast<int>(std::ceil(std::max({v0.x, v1.x, v2.x}))));
+			int minY = std::max(0, static_cast<int>(std::floor(std::min({v0.y, v1.y, v2.y}))));
+			int maxY = std::min(m_Height, static_cast<int>(std::ceil(std::max({v0.y, v1.y, v2.y}))));
+			
+			auto e0 = v2 - v1;
+			auto e1 = v0 - v2;
+			auto e2 = v1 - v0;
+			
+			for (int px = minX; px < maxX; ++px)
+			{
+				for (int py = minY; py < maxY; ++py)
+				{
+					ColorRGB finalColor{ 0, 0, 0};
 					
-				
-				//float gradient = px / static_cast<float>(m_Width);
-				//gradient += py / static_cast<float>(m_Width);
-				//gradient /= 2.0f;
+					auto P = Vector2(px + 0.5f, py + 0.5f);
+					
+					auto p0 = P - Vector2(v1.x, v1.y);
+					auto p1 = P - Vector2(v2.x, v2.y);
+					auto p2 = P - Vector2(v0.x, v0.y);
 
-				//ColorRGB finalColor{ gradient, gradient, gradient };
+					auto weightP0 = Vector2::Cross(Vector2(e0.x, e0.y), p0);
+					auto weightP1 = Vector2::Cross(Vector2(e1.x, e1.y), p1);
+					auto weightP2 = Vector2::Cross(Vector2(e2.x, e2.y), p2);
+					if (weightP0 >= 0 &&
+						weightP1 >= 0 &&
+						weightP2 >= 0)
+					{
+						// Calculate total area
+						auto totalArea = weightP0 + weightP1 + weightP2;
+						
+						// Calculate barycentric coordinates
+						float interpolationScale0 = weightP0 / totalArea;
+						float interpolationScale1 = weightP1 / totalArea;
+						float interpolationScale2 = weightP2 / totalArea;
 
-				//Update Color in Buffer
-				
+						// Interpolate depth
+						float interpolatedDepth = v0.z * interpolationScale0 +
+												  v1.z * interpolationScale1 +
+												  v2.z * interpolationScale2;
+						// Depth test
+						int pixelIndex = px + (py * m_Width);
+						if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
+						{
+							m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
+							finalColor = mesh.vertices_out[mesh.indices[inx]].color * interpolationScale0  +
+										 mesh.vertices_out[mesh.indices[inx+1]].color * interpolationScale1 +
+										 mesh.vertices_out[mesh.indices[inx+2]].color * interpolationScale2;
+							finalColor.MaxToOne();
+
+							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+								static_cast<uint8_t>(finalColor.r * 255),
+								static_cast<uint8_t>(finalColor.g * 255),
+								static_cast<uint8_t>(finalColor.b * 255));
+						}
+					}
+				}
 			}
 		}
 	}
+	
 
 	//@END
 	//Update SDL Surface
@@ -189,26 +169,36 @@ void Renderer::Render()
 	SDL_UpdateWindowSurface(m_pWindow);
 }
 
-void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_in, std::vector<Vertex>& vertices_out) const
+void Renderer::VertexTransformationFunction(Mesh& mesh) const
 {
-	for (int inx = 0; inx < vertices_in.size(); ++inx)
-	{
-		auto viewSpaceMatrix = m_Camera.viewMatrix.TransformPoint(vertices_in[inx].position);
+	// Ensure vertices_out is resized to match the input vertices
+	mesh.vertices_out.resize(mesh.vertices.size());
 
-		Vector3 projectionSpaceMatrix;
-		projectionSpaceMatrix.x = viewSpaceMatrix.x / viewSpaceMatrix.z;
-		projectionSpaceMatrix.y = viewSpaceMatrix.y / viewSpaceMatrix.z;
-		projectionSpaceMatrix.z = viewSpaceMatrix.z;
-		
-		projectionSpaceMatrix.x = projectionSpaceMatrix.x / ((float(m_Width)/m_Height) * m_Camera.fov);
-		projectionSpaceMatrix.y = projectionSpaceMatrix.y / m_Camera.fov;
-		
-		vertices_out[inx].position.x = (projectionSpaceMatrix.x + 1) / 2.f * m_Width;
-		vertices_out[inx].position.y = (1 - projectionSpaceMatrix.y) / 2.f * m_Height;
-		vertices_out[inx].position.z = projectionSpaceMatrix.z;
-		vertices_out[inx].color = vertices_in[inx].color;
+	// Transform each vertex from world space to screen space
+	for (size_t i = 0; i < mesh.vertices.size(); ++i)
+	{
+		// Transform vertex position using the world and view matrices
+		Vector3 worldPosition = mesh.worldMatrix.TransformPoint(mesh.vertices[i].position);
+		Vector3 viewSpacePosition = m_Camera.viewMatrix.TransformPoint(worldPosition);
+
+		// Project the position onto the screen
+		Vector3 projectionSpacePosition;
+		projectionSpacePosition.x = viewSpacePosition.x / viewSpacePosition.z;
+		projectionSpacePosition.y = viewSpacePosition.y / viewSpacePosition.z;
+		projectionSpacePosition.z = viewSpacePosition.z;
+
+		// Normalize to screen coordinates
+		projectionSpacePosition.x = (projectionSpacePosition.x / (static_cast<float>(m_Width) / m_Height * m_Camera.fov)) * 0.5f + 0.5f;
+		projectionSpacePosition.y = (1.0f - (projectionSpacePosition.y / m_Camera.fov)) * 0.5f;
+
+		// Store the transformed position in vertices_out
+		mesh.vertices_out[i].position.x = projectionSpacePosition.x * m_Width;
+		mesh.vertices_out[i].position.y = projectionSpacePosition.y * m_Height;
+		mesh.vertices_out[i].position.z = projectionSpacePosition.z;
+		mesh.vertices_out[i].color = mesh.vertices[i].color;
 	}
 }
+
 
 bool Renderer::SaveBufferToImage() const
 {

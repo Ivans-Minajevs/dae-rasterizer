@@ -28,11 +28,11 @@ namespace dae
 		Renderer& operator=(Renderer&&) noexcept = delete;
 
 		void Update(Timer* pTimer);
-		void Render();
+		void Render() const;
 
 		bool SaveBufferToImage() const;
 
-		void VertexTransformationFunction(const std::vector<Vertex>& vertices_in, std::vector<Vertex>& vertices_out) const;
+		void VertexTransformationFunction(Mesh& mesh) const;
 
 	private:
 		SDL_Window* m_pWindow{};
