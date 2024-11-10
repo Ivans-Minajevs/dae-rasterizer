@@ -59,6 +59,6 @@ namespace dae
 		SDL_GetRGB(pixel, m_pSurface->format, &r, &g, &b);
 		
 		
-		return {r / 255.f, g / 255.f, b / 255.f};
+		return {float(r) / 255.f, float(g) / 255.f, float(b) / 255.f};
 	}
 }

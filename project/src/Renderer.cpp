@@ -111,10 +111,10 @@ void Renderer::Render() const
 			auto t2 = mesh.indices[inx+2];
 			if (mesh.primitiveTopology == PrimitiveTopology::TriangleStrip)
 			{
-				//if (v0 == v1 || v1 == v2 || v2 == v0)
-				//{
-				//	continue;
-				//}
+				if (t0 == t1 || t1 == t2 || t2 == t0)
+				{
+					continue;
+				}
 				if (inx % 2 != 0)
 				{
 					std::swap(t1, t2);
@@ -165,9 +165,9 @@ void Renderer::Render() const
 						float interpolationScale2 = weightP2 / totalArea;
 
 						// Interpolate depth
-						float interpolatedDepth = 1 / (1/v0.z * interpolationScale0 +
-												  1/v1.z * interpolationScale1 +
-												  1/v2.z * interpolationScale2);
+						float interpolatedDepth = 1.f / (1.f / v0.z * interpolationScale0 +
+													   1.f / v1.z * interpolationScale1 +
+													   1.f / v2.z * interpolationScale2);
 						// Depth test
 						int pixelIndex = px + (py * m_Width);
 						if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
