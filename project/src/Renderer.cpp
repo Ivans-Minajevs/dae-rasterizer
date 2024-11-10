@@ -49,47 +49,49 @@ void Renderer::Render() const
 	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
 
-	
-	//std::vector<Mesh> meshes_world = {
-	//	Mesh {
-	//		{
-	//			Vertex{ { -3, 3, -2 }},
-	//			Vertex{	{ 0, 3, -2 }},
-	//			Vertex{ { 3, 3, -2 }},
-	//			Vertex{ { -3, 0, -2 }},
-	//			Vertex{ { 0, 0, -2 }},
-	//			Vertex{ { 3, 0, -2 }},
-	//			Vertex{ { -3, -3, -2 }},
-	//			Vertex{ { 0, -3, -2 }},
-	//			Vertex{ { 3, -3, -2 }}
-	//		},
-	//		{ 3, 0, 4, 1, 5, 2,
-	//			2, 6,
-	//			6, 3, 7, 4, 8, 5 },
-	//		PrimitiveTopology::TriangleStrip
-	//	}
-	//};
+	Texture* texture = Texture::LoadFromFile("resources/uv_grid_2.png");
 
+	
 	std::vector<Mesh> meshes_world = {
 		Mesh {
-				{
-					Vertex{ { -3, 3, -2 }},
-					Vertex{	{ 0, 3, -2 }},
-					Vertex{ { 3, 3, -2 }},
-					Vertex{ { -3, 0, -2 }},
-					Vertex{ { 0, 0, -2 }},
-					Vertex{ { 3, 0, -2 }},
-					Vertex{ { -3, -3, -2 }},
-					Vertex{ { 0, -3, -2 }},
-					Vertex{ { 3, -3, -2 }}
-				},
-				{
-						3, 0, 1,   1, 4, 3,   4, 1, 2,
-						2, 5, 4,   6, 3, 4,   4, 7, 6,
-						7, 4, 5,   5, 8, 7},
-				PrimitiveTopology::TriangleList
-			}
+			{
+				Vertex{ { -3, 3, -2 }, {}, {0.f, 0.f}},
+				Vertex{	{ 0, 3, -2 }, {}, {.5f, 0.f}},
+				Vertex{ { 3, 3, -2 }, {}, {1.f, 0.f}},
+				Vertex{ { -3, 0, -2 }, {}, {0.f, .5f}},
+				Vertex{ { 0, 0, -2 }, {}, {.5f, .5f}},
+				Vertex{ { 3, 0, -2 }, {}, {1.f, .5f}},
+				Vertex{ { -3, -3, -2 }, {}, {0.f, 1.f}},
+				Vertex{ { 0, -3, -2 }, {}, {.5f, 1.f}},
+				Vertex{ { 3, -3, -2 }, {}, {1.f, 1.f}}
+			},
+			{ 3, 0, 4, 1, 5, 2,
+				2, 6,
+				6, 3, 7, 4, 8, 5 },
+			PrimitiveTopology::TriangleStrip
+		}
 	};
+
+	//std::vector<Mesh> meshes_world = {
+	//	Mesh {
+	//			{
+	//				Vertex{ { -3, 3, -2 }},
+	//				Vertex{	{ 0, 3, -2 }},
+	//				Vertex{ { 3, 3, -2 }},
+	//				Vertex{ { -3, 0, -2 }},
+	//				Vertex{ { 0, 0, -2 }},
+	//				Vertex{ { 3, 0, -2 }},
+	//				Vertex{ { -3, -3, -2 }},
+	//				Vertex{ { 0, -3, -2 }},
+	//				Vertex{ { 3, -3, -2 }}
+	//			},
+	//			{
+	//					3, 0, 1,   1, 4, 3,   4, 1, 2,
+	//					2, 5, 4,   6, 3, 4,   4, 7, 6,
+	//					7, 4, 5,   5, 8, 7},
+	//			PrimitiveTopology::TriangleList
+	//		}
+	//};
 	
 	
 	//Lock BackBuffer
@@ -103,21 +105,27 @@ void Renderer::Render() const
 		bool isTriangleList = (mesh.primitiveTopology == PrimitiveTopology::TriangleList);
 		for (int inx = 0; inx < mesh.indices.size() - 2; inx += (isTriangleList ? 3 : 1))
 		{
-			auto v0 = mesh.vertices_out[mesh.indices[inx]].position;
-			auto v1 = mesh.vertices_out[mesh.indices[inx+1]].position;
-			auto v2 = mesh.vertices_out[mesh.indices[inx+2]].position;
-			
+
+			auto t0 = mesh.indices[inx];
+			auto t1 = mesh.indices[inx+1];
+			auto t2 = mesh.indices[inx+2];
 			if (mesh.primitiveTopology == PrimitiveTopology::TriangleStrip)
 			{
-				if (v0 == v1 || v1 == v2 || v2 == v0)
-				{
-					continue;
-				}
+				//if (v0 == v1 || v1 == v2 || v2 == v0)
+				//{
+				//	continue;
+				//}
 				if (inx % 2 != 0)
 				{
-					std::swap(v1, v2);
+					std::swap(t1, t2);
 				}
 			}
+			
+			auto v0 = mesh.vertices_out[t0].position;
+			auto v1 = mesh.vertices_out[t1].position;
+			auto v2 = mesh.vertices_out[t2].position;
+			
+			
 			
 
 			int minX = std::max(0, static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x}))));
@@ -165,9 +173,22 @@ void Renderer::Render() const
 						if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
 						{
 							m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
-							finalColor = mesh.vertices_out[mesh.indices[inx]].color * interpolationScale0  +
-										 mesh.vertices_out[mesh.indices[inx+1]].color * interpolationScale1 +
-										 mesh.vertices_out[mesh.indices[inx+2]].color * interpolationScale2;
+
+							float u =	 mesh.vertices[t0].uv.x * interpolationScale0  +
+										 mesh.vertices[t1].uv.x * interpolationScale1 +
+										 mesh.vertices[t2].uv.x * interpolationScale2;
+
+							float v =    mesh.vertices[t0].uv.y * interpolationScale0  +
+										 mesh.vertices[t1].uv.y * interpolationScale1 +
+										 mesh.vertices[t2].uv.y * interpolationScale2;
+							
+							//finalColor = mesh.vertices_out[mesh.indices[inx]].color * interpolationScale0  +
+							//			 mesh.vertices_out[mesh.indices[inx+1]].color * interpolationScale1 +
+							//			 mesh.vertices_out[mesh.indices[inx+2]].color * interpolationScale2;
+
+							Vector2 uv = Vector2(u, v);
+							finalColor = texture->Sample(uv);
+							
 							finalColor.MaxToOne();
 
 							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
