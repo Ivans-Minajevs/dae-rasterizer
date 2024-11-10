@@ -45,19 +45,56 @@ void Renderer::Render()
 		m_pDepthBufferPixels[i] = std::numeric_limits<float>::max();
 	}
 	
-	SDL_Color clearColor = {100, 100, 100, 255};
+	SDL_Color clearColor = {0, 0, 0, 255};
 	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
-	
+
+	std::vector<Vector3> vertices
+	{
+		{-3.f, 3.f, -2.f},
+		{0.f, 3.f, -2.f},
+		{3.f, 3.f, -2.f},
+		{-3.f, 0.f, -2.f},
+		{0.f, 0.f, -2.f},
+		{3.f, 0.f, -2.f},
+		{-3.f, -3.f, -2.f},
+		{0.f, -3.f, -2.f},
+		{3.f, -3.f, -2.f}
+	};
 	std::vector<Vertex> vertices_world
 	{
-		{{0.f, 2.f, 0.f}, {1, 0, 0}},
-		{{1.5f, -1.f, 0.f},{1, 0, 0}},
-		{{-1.5f, -1.f, 0.f}, {1, 0, 0}},
+		{vertices[3], {1, 1, 1}},
+		{vertices[0],{1, 1, 1}},
+		{vertices[4], {1, 1, 1}},
 		
-		{{0.f, 4.f, 2.f}, {1, 0, 0}},
-		{{3.f, -2.f, 2.f},{0, 1, 0}},
-		{{-3.f, -2.f, 2.f}, {0, 0, 1}}
+		{vertices[0], {1, 1, 1}},
+		{vertices[1],{1, 1, 1}},
+		{vertices[4], {1, 1, 1}},
+		
+		{vertices[4], {1, 1, 1}},
+		{vertices[1],{1, 1, 1}},
+		{vertices[5], {1, 1, 1}},
+
+		{vertices[1], {1, 1, 1}},
+		{vertices[2],{1, 1, 1}},
+		{vertices[5], {1, 1, 1}},
+
+		{vertices[6], {1, 1, 1}},
+		{vertices[3],{1, 1, 1}},
+		{vertices[7], {1, 1, 1}},
+
+		{vertices[3], {1, 1, 1}},
+		{vertices[4],{1, 1, 1}},
+		{vertices[7], {1, 1, 1}},
+
+		{vertices[7], {1, 1, 1}},
+		{vertices[4],{1, 1, 1}},
+		{vertices[8], {1, 1, 1}},
+		
+		{vertices[4], {1, 1, 1}},
+		{vertices[5],{1, 1, 1}},
+		{vertices[8], {1, 1, 1}},
+		
 	};
 
 	std::vector<Vertex> vertices_screen;
