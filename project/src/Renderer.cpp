@@ -165,22 +165,22 @@ void Renderer::Render() const
 						float interpolationScale2 = weightP2 / totalArea;
 
 						// Interpolate depth
-						float interpolatedDepth = v0.z * interpolationScale0 +
-												  v1.z * interpolationScale1 +
-												  v2.z * interpolationScale2;
+						float interpolatedDepth = 1 / (1/v0.z * interpolationScale0 +
+												  1/v1.z * interpolationScale1 +
+												  1/v2.z * interpolationScale2);
 						// Depth test
 						int pixelIndex = px + (py * m_Width);
 						if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
 						{
 							m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
 
-							float u =	 mesh.vertices[t0].uv.x * interpolationScale0  +
-										 mesh.vertices[t1].uv.x * interpolationScale1 +
-										 mesh.vertices[t2].uv.x * interpolationScale2;
+							float u =	 (mesh.vertices[t0].uv.x / v0.z * interpolationScale0  +
+										 mesh.vertices[t1].uv.x / v1.z * interpolationScale1 +
+										 mesh.vertices[t2].uv.x / v2.z * interpolationScale2) * interpolatedDepth;
 
-							float v =    mesh.vertices[t0].uv.y * interpolationScale0  +
-										 mesh.vertices[t1].uv.y * interpolationScale1 +
-										 mesh.vertices[t2].uv.y * interpolationScale2;
+							float v =    (mesh.vertices[t0].uv.y / v0.z * interpolationScale0  +
+										 mesh.vertices[t1].uv.y / v1.z * interpolationScale1 +
+										 mesh.vertices[t2].uv.y / v2.z * interpolationScale2) * interpolatedDepth;
 							
 							//finalColor = mesh.vertices_out[mesh.indices[inx]].color * interpolationScale0  +
 							//			 mesh.vertices_out[mesh.indices[inx+1]].color * interpolationScale1 +
