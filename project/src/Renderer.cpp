@@ -50,26 +50,46 @@ void Renderer::Render() const
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
 
 	
+	//std::vector<Mesh> meshes_world = {
+	//	Mesh {
+	//		{
+	//			Vertex{ { -3, 3, -2 }},
+	//			Vertex{	{ 0, 3, -2 }},
+	//			Vertex{ { 3, 3, -2 }},
+	//			Vertex{ { -3, 0, -2 }},
+	//			Vertex{ { 0, 0, -2 }},
+	//			Vertex{ { 3, 0, -2 }},
+	//			Vertex{ { -3, -3, -2 }},
+	//			Vertex{ { 0, -3, -2 }},
+	//			Vertex{ { 3, -3, -2 }}
+	//		},
+	//		{ 3, 0, 4, 1, 5, 2,
+	//			2, 6,
+	//			6, 3, 7, 4, 8, 5 },
+	//		PrimitiveTopology::TriangleStrip
+	//	}
+	//};
+
 	std::vector<Mesh> meshes_world = {
 		Mesh {
-			{
-				Vertex{ { -3, 3, -2 }},
-				Vertex{	{ 0, 3, -2 }},
-				Vertex{ { 3, 3, -2 }},
-				Vertex{ { -3, 0, -2 }},
-				Vertex{ { 0, 0, -2 }},
-				Vertex{ { 3, 0, -2 }},
-				Vertex{ { -3, -3, -2 }},
-				Vertex{ { 0, -3, -2 }},
-				Vertex{ { 3, -3, -2 }}
-			},
-			{ 3, 0, 4, 1, 5, 2,
-				2, 6,
-				6, 3, 7, 4, 8, 5 },
-			PrimitiveTopology::TriangleStrip
-		}
+				{
+					Vertex{ { -3, 3, -2 }},
+					Vertex{	{ 0, 3, -2 }},
+					Vertex{ { 3, 3, -2 }},
+					Vertex{ { -3, 0, -2 }},
+					Vertex{ { 0, 0, -2 }},
+					Vertex{ { 3, 0, -2 }},
+					Vertex{ { -3, -3, -2 }},
+					Vertex{ { 0, -3, -2 }},
+					Vertex{ { 3, -3, -2 }}
+				},
+				{
+						3, 0, 1,   1, 4, 3,   4, 1, 2,
+						2, 5, 4,   6, 3, 4,   4, 7, 6,
+						7, 4, 5,   5, 8, 7},
+				PrimitiveTopology::TriangleList
+			}
 	};
-	
 	
 	
 	//Lock BackBuffer
