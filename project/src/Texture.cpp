@@ -23,6 +23,7 @@ namespace dae
 		}
 	}
 
+
 	Texture* Texture::LoadFromFile(const std::string& path)
 	{
 		//TODO

@@ -1,7 +1,7 @@
 //External includes
 #include "SDL.h"
 #include "SDL_surface.h"
-
+#include <memory>
 //Project includes
 #include "Renderer.h"
 #include "Maths.h"
@@ -15,6 +15,8 @@ Renderer::Renderer(SDL_Window* pWindow) :
 {
 	//Initialize
 	SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
+
+	
 
 	//Create Buffers
 	m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
@@ -40,6 +42,7 @@ void Renderer::Update(Timer* pTimer)
 
 void Renderer::Render() const
 {
+	std::unique_ptr<Texture> texture{ Texture::LoadFromFile("resources/uv_grid_2.png") };
 	//@START
 	for (int i = 0; i < m_Width * m_Height; ++i) {
 		m_pDepthBufferPixels[i] = std::numeric_limits<float>::max();
@@ -48,8 +51,6 @@ void Renderer::Render() const
 	SDL_Color clearColor = {0, 0, 0, 255};
 	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
-
-	Texture* texture = Texture::LoadFromFile("resources/uv_grid_2.png");
 
 	
 	std::vector<Mesh> meshes_world = {
@@ -189,7 +190,9 @@ void Renderer::Render() const
 							float interpolatedDepth = 1.f / (1.f / v0.w * interpolationScale0 +
 													   1.f / v1.w * interpolationScale1 +
 													   1.f / v2.w * interpolationScale2);
-							// Depth test
+							if (interpolatedDepth <= 0) {
+								continue;
+							}
 
 							float u =	 (mesh.vertices[t0].uv.x / v0.w * interpolationScale0 +
 										 mesh.vertices[t1].uv.x / v1.w * interpolationScale1 +
@@ -207,20 +210,32 @@ void Renderer::Render() const
 
 							if (m_IsFinalColor)
 							{
-								finalColor = texture->Sample(uv);
+								finalColor = texture.get()->Sample(uv);
 								finalColor.MaxToOne();
 							}
 							else
 							{
 								
-								finalColor = ColorRGB(interpolatedDepth, 0.985f, 1.f);
+								finalColor = ColorRGB(interpolatedDepth, interpolatedDepth, interpolatedDepth);
+								finalColor.MaxToOne();
+							}
+							
+							if (m_IsFinalColor)
+							{
+								m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+									static_cast<uint8_t>(finalColor.r * 255),
+									static_cast<uint8_t>(finalColor.g * 255),
+									static_cast<uint8_t>(finalColor.b * 255));
+							} 
+							else
+							{
+								m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+									static_cast<uint8_t>(finalColor.r * 255),
+									static_cast<uint8_t>(0.985f * 255),
+									static_cast<uint8_t>(1.f * 255));
 							}
 							
 							
-							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-															static_cast<uint8_t>(finalColor.r * 255),
-															static_cast<uint8_t>(finalColor.g * 255),
-															static_cast<uint8_t>(finalColor.b * 255));
 							//if (m_IsFinalColor)
 							//{
 							//	
@@ -256,10 +271,15 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 	// Transform each vertex from world space to screen space
 	for (size_t i = 0; i < mesh.vertices.size(); ++i)
 	{
+
+		auto transformMatrix = mesh.worldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
 		//Matric worldViewProjection = mesh.worldMatrix * m_Camera.viewMatrix * 
 		// Transform vertex position using the world and view matrices
-		Vector4 viewSpacePosition = m_Camera.projectionMatrix.TransformPoint((m_Camera.viewMatrix.TransformPoint(mesh.worldMatrix.TransformPoint(mesh.vertices[i].position)).ToVector4()));
+		//Vector4 viewSpacePosition = m_Camera.projectionMatrix.TransformPoint((m_Camera.viewMatrix.TransformPoint(mesh.worldMatrix.TransformPoint(mesh.vertices[i].position)).ToVector4()));
+		Vector4 viewSpacePosition = transformMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
+		if (viewSpacePosition.w <= 0) continue;
+		
 		// Project the position onto the screen
 		Vector4 projectionSpacePosition;
 		projectionSpacePosition.x = viewSpacePosition.x / viewSpacePosition.w;
