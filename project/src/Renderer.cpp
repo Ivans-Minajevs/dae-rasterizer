@@ -220,7 +220,7 @@ void Renderer::Render() const
 							{
 								
 								finalColor = ColorRGB(interpolatedDepth, interpolatedDepth, interpolatedDepth);
-								finalColor.MaxToOne();
+							
 							}
 							
 							if (m_IsFinalColor)
@@ -275,11 +275,9 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 	for (size_t i = 0; i < mesh.vertices.size(); ++i)
 	{
 
-		auto transformMatrix = mesh.worldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
-		//Matric worldViewProjection = mesh.worldMatrix * m_Camera.viewMatrix * 
-		// Transform vertex position using the world and view matrices
-		//Vector4 viewSpacePosition = m_Camera.projectionMatrix.TransformPoint((m_Camera.viewMatrix.TransformPoint(mesh.worldMatrix.TransformPoint(mesh.vertices[i].position)).ToVector4()));
-		Vector4 viewSpacePosition = transformMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
+		auto overallMatrix = mesh.worldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
+	
+		Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
 		if (viewSpacePosition.w <= 0) continue;
 		

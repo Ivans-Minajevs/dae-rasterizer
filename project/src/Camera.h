@@ -50,8 +50,8 @@ namespace dae
 
 		void CalculateViewMatrix()
 		{
-			right = Vector3::Cross(Vector3::UnitY, forward).Normalized();
-			up = Vector3::Cross(forward, right).Normalized();
+			auto right = Vector3::Cross(Vector3::UnitY, forward).Normalized();
+			auto up = Vector3::Cross(forward, right).Normalized();
 
 			viewMatrix = Matrix::CreateLookAtLH(origin, forward, up);
 			//DirectX Implementation => https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixlookatlh
@@ -70,7 +70,7 @@ namespace dae
 			const float deltaTime = pTimer->GetElapsed();
 
 			//Camera Update Logic
-			Vector3 velocity { 10.f, 10.f, 10.f };
+			Vector3 velocity { 5.f, 5.f, 5.f };
 			constexpr float rotationVeloctiy{ 0.1f * PI / 180.0f};
 
 			//Keyboard Input
@@ -99,10 +99,12 @@ namespace dae
 			{
 				totalPitch += mouseX * rotationVeloctiy;
 				totalYaw += mouseY * rotationVeloctiy;
-			}
 
+			}
 			Matrix finalRotation = finalRotation.CreateRotation(totalYaw, totalPitch, 0.f);
 			forward = finalRotation.TransformVector(Vector3::UnitZ);
+
+		
 			forward.Normalize();
 
 			//Update Matrices
