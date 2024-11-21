@@ -27,7 +27,7 @@ namespace dae
 		Renderer& operator=(Renderer&&) noexcept = delete;
 
 		void Update(Timer* pTimer);
-		void Render() const;
+		void Render();
 
 		bool SaveBufferToImage() const;
 
@@ -49,6 +49,8 @@ namespace dae
 		bool m_IsFinalColor { true };
 		
 		Texture* m_Texture;
+
+		std::vector<Mesh> m_MeshesWorld;
 
 		SDL_Surface* m_pFrontBuffer{ nullptr };
 		SDL_Surface* m_pBackBuffer{ nullptr };

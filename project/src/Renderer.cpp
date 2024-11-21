@@ -16,7 +16,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	//Initialize
 	SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-	m_Texture = Texture::LoadFromFile("resources/uv_grid_2.png");
+	m_Texture = Texture::LoadFromFile("resources/tuktuk.png");
 
 	//Create Buffers
 	m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
@@ -25,9 +25,13 @@ Renderer::Renderer(SDL_Window* pWindow) :
 
 	m_pDepthBufferPixels = new float[m_Width * m_Height];
 	
+	auto& meshRef = m_MeshesWorld.emplace_back();
+	Utils::ParseOBJ("resources/tuktuk.obj", meshRef.vertices, meshRef.indices);
+	meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
+	m_MeshesWorld.push_back(meshRef);
 
 	//Initialize Camera
-	m_Camera.Initialize( m_Width, m_Height, 60.f, { .0f,.0f,-10.f });
+	m_Camera.Initialize( m_Width, m_Height, 60.f, { .0f, 5.f , -30.f });
 }
 
 Renderer::~Renderer()
@@ -41,7 +45,7 @@ void Renderer::Update(Timer* pTimer)
 	m_Camera.Update(pTimer);
 }
 
-void Renderer::Render() const
+void Renderer::Render()
 {
 
 	//@START
@@ -53,47 +57,27 @@ void Renderer::Render() const
 	Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
 	SDL_FillRect(m_pBackBuffer, nullptr, color);
 
-	
-	std::vector<Mesh> meshes_world = {
-		Mesh {
-			{
-				Vertex{ { -3, 3, -2 }, {}, {0.f, 0.f}},
-				Vertex{	{ 0, 3, -2 }, {}, {.5f, 0.f}},
-				Vertex{ { 3, 3, -2 }, {}, {1.f, 0.f}},
-				Vertex{ { -3, 0, -2 }, {}, {0.f, .5f}},
-				Vertex{ { 0, 0, -2 }, {}, {.5f, .5f}},
-				Vertex{ { 3, 0, -2 }, {}, {1.f, .5f}},
-				Vertex{ { -3, -3, -2 }, {}, {0.f, 1.f}},
-				Vertex{ { 0, -3, -2 }, {}, {.5f, 1.f}},
-				Vertex{ { 3, -3, -2 }, {}, {1.f, 1.f}}
-			},
-			{ 3, 0, 4, 1, 5, 2,
-				2, 6,
-				6, 3, 7, 4, 8, 5 },
-			PrimitiveTopology::TriangleStrip
-		}
-	};
-
+	//
 	//std::vector<Mesh> meshes_world = {
 	//	Mesh {
-	//			{
-	//				Vertex{ { -3, 3, -2 }},
-	//				Vertex{	{ 0, 3, -2 }},
-	//				Vertex{ { 3, 3, -2 }},
-	//				Vertex{ { -3, 0, -2 }},
-	//				Vertex{ { 0, 0, -2 }},
-	//				Vertex{ { 3, 0, -2 }},
-	//				Vertex{ { -3, -3, -2 }},
-	//				Vertex{ { 0, -3, -2 }},
-	//				Vertex{ { 3, -3, -2 }}
-	//			},
-	//			{
-	//					3, 0, 1,   1, 4, 3,   4, 1, 2,
-	//					2, 5, 4,   6, 3, 4,   4, 7, 6,
-	//					7, 4, 5,   5, 8, 7},
-	//			PrimitiveTopology::TriangleList
-	//		}
+	//		{
+	//			Vertex{ { -3, 3, -2 }, {}, {0.f, 0.f}},
+	//			Vertex{	{ 0, 3, -2 }, {}, {.5f, 0.f}},
+	//			Vertex{ { 3, 3, -2 }, {}, {1.f, 0.f}},
+	//			Vertex{ { -3, 0, -2 }, {}, {0.f, .5f}},
+	//			Vertex{ { 0, 0, -2 }, {}, {.5f, .5f}},
+	//			Vertex{ { 3, 0, -2 }, {}, {1.f, .5f}},
+	//			Vertex{ { -3, -3, -2 }, {}, {0.f, 1.f}},
+	//			Vertex{ { 0, -3, -2 }, {}, {.5f, 1.f}},
+	//			Vertex{ { 3, -3, -2 }, {}, {1.f, 1.f}}
+	//		},
+	//		{ 3, 0, 4, 1, 5, 2,
+	//			2, 6,
+	//			6, 3, 7, 4, 8, 5 },
+	//		PrimitiveTopology::TriangleStrip
+	//	}
 	//};
+
 	
 	
 	//Lock BackBuffer
@@ -102,7 +86,7 @@ void Renderer::Render() const
 	
 
 	//RENDER LOGIC
-	for (Mesh& mesh: meshes_world)
+	for (Mesh& mesh: m_MeshesWorld)
 	{
 		VertexTransformationFunction(mesh);
 		
@@ -226,27 +210,12 @@ void Renderer::Render() const
 								finalColor = ColorRGB(remappedDepth, remappedDepth, remappedDepth);
 								finalColor.MaxToOne();
 							}
-							
 						
 							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
 								static_cast<uint8_t>(finalColor.r * 255),
 								static_cast<uint8_t>(finalColor.g * 255),
 								static_cast<uint8_t>(finalColor.b * 255));
-						
-							
-							
-							//if (m_IsFinalColor)
-							//{
-							//	
-							//}
-							//else
-							//{
-							//	m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-							//	static_cast<uint8_t>(interpolatedDepth * 255),
-							//	static_cast<uint8_t>(0.985f * 255),
-							//	static_cast<uint8_t>(1.f * 255));
-							//}
-							//
+	
 						}
 					}
 				}
