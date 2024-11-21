@@ -16,7 +16,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	//Initialize
 	SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-	
+	m_Texture = Texture::LoadFromFile("resources/uv_grid_2.png");
 
 	//Create Buffers
 	m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
@@ -33,6 +33,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 Renderer::~Renderer()
 {
 	delete[] m_pDepthBufferPixels;
+	delete m_Texture;
 }
 
 void Renderer::Update(Timer* pTimer)
@@ -42,7 +43,7 @@ void Renderer::Update(Timer* pTimer)
 
 void Renderer::Render() const
 {
-	std::unique_ptr<Texture> texture{ Texture::LoadFromFile("resources/uv_grid_2.png") };
+
 	//@START
 	for (int i = 0; i < m_Width * m_Height; ++i) {
 		m_pDepthBufferPixels[i] = std::numeric_limits<float>::max();
@@ -97,6 +98,8 @@ void Renderer::Render() const
 	
 	//Lock BackBuffer
 	SDL_LockSurface(m_pBackBuffer);
+
+	
 
 	//RENDER LOGIC
 	for (Mesh& mesh: meshes_world)
@@ -210,7 +213,7 @@ void Renderer::Render() const
 
 							if (m_IsFinalColor)
 							{
-								finalColor = texture.get()->Sample(uv);
+								finalColor = m_Texture->Sample(uv);
 								finalColor.MaxToOne();
 							}
 							else

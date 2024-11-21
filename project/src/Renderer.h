@@ -48,6 +48,8 @@ namespace dae
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
 		
+		Texture* m_Texture;
+
 		SDL_Surface* m_pFrontBuffer{ nullptr };
 		SDL_Surface* m_pBackBuffer{ nullptr };
 		uint32_t* m_pBackBufferPixels{};
