@@ -13,13 +13,16 @@ namespace dae
 	{
 		Camera() = default;
 
-		Camera(const Vector3& _origin, float _fovAngle):
-			origin{_origin},
-			fovAngle{_fovAngle}
+		Camera(const Vector3& _origin, float _fovAngle, float _width, float _height):
+			width{ _width },
+			height{ _height },
+			origin{ _origin },
+			fovAngle{ _fovAngle }
 		{
 		}
 
-
+		float width;
+		float height;
 		Vector3 origin{};
 		float fovAngle{90.f};
 		float fov{ tanf((fovAngle * TO_RADIANS) / 2.f) };
@@ -33,12 +36,15 @@ namespace dae
 
 		Matrix invViewMatrix{};
 		Matrix viewMatrix{};
+		Matrix projectionMatrix{};
 
-		void Initialize(float _fovAngle = 90.f, Vector3 _origin = {0.f,0.f,0.f})
+		void Initialize(float _width, float _height, float _fovAngle = 90.f, Vector3 _origin = {0.f,0.f,0.f})
 		{
 			fovAngle = _fovAngle;
 			fov = tanf((fovAngle * TO_RADIANS) / 2.f);
 
+			width = _width;
+			height = _height;
 			origin = _origin;
 		}
 
@@ -53,8 +59,8 @@ namespace dae
 
 		void CalculateProjectionMatrix()
 		{
-			//TODO W3
-
+			projectionMatrix = Matrix::CreatePerspectiveFovLH(fov, width/height, 1.f, 1000.f);
+			
 			//ProjectionMatrix => Matrix::CreatePerspectiveFovLH(...) [not implemented yet]
 			//DirectX Implementation => https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixperspectivefovlh
 		}
@@ -65,7 +71,7 @@ namespace dae
 
 			//Camera Update Logic
 			Vector3 velocity { 10.f, 10.f, 10.f };
-			const float rotationVeloctiy{ 0.1f * PI / 180.0f};
+			constexpr float rotationVeloctiy{ 0.1f * PI / 180.0f};
 
 			//Keyboard Input
 			const uint8_t* pKeyboardState = SDL_GetKeyboardState(nullptr);
@@ -95,9 +101,7 @@ namespace dae
 				totalYaw += mouseY * rotationVeloctiy;
 			}
 
-			Matrix finalRotation;
-
-			finalRotation = finalRotation.CreateRotation(totalYaw, totalPitch, 0.f);
+			Matrix finalRotation = finalRotation.CreateRotation(totalYaw, totalPitch, 0.f);
 			forward = finalRotation.TransformVector(Vector3::UnitZ);
 			forward.Normalize();
 

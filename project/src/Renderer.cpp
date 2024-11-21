@@ -25,7 +25,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	
 
 	//Initialize Camera
-	m_Camera.Initialize(60.f, { .0f,.0f,-10.f });
+	m_Camera.Initialize( m_Width, m_Height, 60.f, { .0f,.0f,-10.f });
 }
 
 Renderer::~Renderer()
@@ -124,10 +124,23 @@ void Renderer::Render() const
 			auto v0 = mesh.vertices_out[t0].position;
 			auto v1 = mesh.vertices_out[t1].position;
 			auto v2 = mesh.vertices_out[t2].position;
-			
-			
-			
 
+			if ((v0.x >= -1 && v0.x <= 1) || (v1.x >= -1 && v1.x <= 1) || (v2.x >= -1 && v2.x <= 1)
+				&& (	(v0.y >= -1 && v0.y <= 1) || (v1.y >= -1 && v1.y <= 1) || (v2.y >= -1 && v2.y <= 1)))
+			{
+				v0.x *= m_Width;
+				v1.x *= m_Width;
+				v2.x *= m_Width;
+
+				v0.y *= m_Height;
+				v1.y *= m_Height;
+				v2.y *= m_Height;
+			}
+			else
+			{
+				continue;
+			}
+			
 			int minX = std::max(0, static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x}))));
 			int maxX = std::min(m_Width, static_cast<int>(std::ceil(std::max({v0.x, v1.x, v2.x}))));
 			int minY = std::max(0, static_cast<int>(std::floor(std::min({v0.y, v1.y, v2.y}))));
@@ -165,36 +178,61 @@ void Renderer::Render() const
 						float interpolationScale2 = weightP2 / totalArea;
 
 						// Interpolate depth
-						float interpolatedDepth = 1.f / (1.f / v0.z * interpolationScale0 +
+						float zBufferValue = 1.f / (1.f / v0.z * interpolationScale0 +
 													   1.f / v1.z * interpolationScale1 +
 													   1.f / v2.z * interpolationScale2);
 						// Depth test
 						int pixelIndex = px + (py * m_Width);
-						if (interpolatedDepth < m_pDepthBufferPixels[pixelIndex])
+						if (zBufferValue < m_pDepthBufferPixels[pixelIndex])
 						{
-							m_pDepthBufferPixels[pixelIndex] = interpolatedDepth;
+							m_pDepthBufferPixels[pixelIndex] = zBufferValue;
+							float interpolatedDepth = 1.f / (1.f / v0.w * interpolationScale0 +
+													   1.f / v1.w * interpolationScale1 +
+													   1.f / v2.w * interpolationScale2);
+							// Depth test
 
-							float u =	 (mesh.vertices[t0].uv.x / v0.z * interpolationScale0  +
-										 mesh.vertices[t1].uv.x / v1.z * interpolationScale1 +
-										 mesh.vertices[t2].uv.x / v2.z * interpolationScale2) * interpolatedDepth;
+							float u =	 (mesh.vertices[t0].uv.x / v0.w * interpolationScale0 +
+										 mesh.vertices[t1].uv.x / v1.w * interpolationScale1 +
+										 mesh.vertices[t2].uv.x / v2.w * interpolationScale2) * interpolatedDepth;
 
-							float v =    (mesh.vertices[t0].uv.y / v0.z * interpolationScale0  +
-										 mesh.vertices[t1].uv.y / v1.z * interpolationScale1 +
-										 mesh.vertices[t2].uv.y / v2.z * interpolationScale2) * interpolatedDepth;
+							float v =    (mesh.vertices[t0].uv.y / v0.w * interpolationScale0  +
+										 mesh.vertices[t1].uv.y / v1.w * interpolationScale1 +
+										 mesh.vertices[t2].uv.y / v2.w * interpolationScale2) * interpolatedDepth;
 							
 							//finalColor = mesh.vertices_out[mesh.indices[inx]].color * interpolationScale0  +
 							//			 mesh.vertices_out[mesh.indices[inx+1]].color * interpolationScale1 +
 							//			 mesh.vertices_out[mesh.indices[inx+2]].color * interpolationScale2;
 
 							Vector2 uv = Vector2(u, v);
-							finalColor = texture->Sample(uv);
-							
-							finalColor.MaxToOne();
 
+							if (m_IsFinalColor)
+							{
+								finalColor = texture->Sample(uv);
+								finalColor.MaxToOne();
+							}
+							else
+							{
+								
+								finalColor = ColorRGB(interpolatedDepth, 0.985f, 1.f);
+							}
+							
+							
 							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-								static_cast<uint8_t>(finalColor.r * 255),
-								static_cast<uint8_t>(finalColor.g * 255),
-								static_cast<uint8_t>(finalColor.b * 255));
+															static_cast<uint8_t>(finalColor.r * 255),
+															static_cast<uint8_t>(finalColor.g * 255),
+															static_cast<uint8_t>(finalColor.b * 255));
+							//if (m_IsFinalColor)
+							//{
+							//	
+							//}
+							//else
+							//{
+							//	m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+							//	static_cast<uint8_t>(interpolatedDepth * 255),
+							//	static_cast<uint8_t>(0.985f * 255),
+							//	static_cast<uint8_t>(1.f * 255));
+							//}
+							//
 						}
 					}
 				}
@@ -218,24 +256,30 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 	// Transform each vertex from world space to screen space
 	for (size_t i = 0; i < mesh.vertices.size(); ++i)
 	{
+		//Matric worldViewProjection = mesh.worldMatrix * m_Camera.viewMatrix * 
 		// Transform vertex position using the world and view matrices
-		Vector3 worldPosition = mesh.worldMatrix.TransformPoint(mesh.vertices[i].position);
-		Vector3 viewSpacePosition = m_Camera.viewMatrix.TransformPoint(worldPosition);
+		Vector4 viewSpacePosition = m_Camera.projectionMatrix.TransformPoint((m_Camera.viewMatrix.TransformPoint(mesh.worldMatrix.TransformPoint(mesh.vertices[i].position)).ToVector4()));
 
 		// Project the position onto the screen
-		Vector3 projectionSpacePosition;
-		projectionSpacePosition.x = viewSpacePosition.x / viewSpacePosition.z;
-		projectionSpacePosition.y = viewSpacePosition.y / viewSpacePosition.z;
-		projectionSpacePosition.z = viewSpacePosition.z;
+		Vector4 projectionSpacePosition;
+		projectionSpacePosition.x = viewSpacePosition.x / viewSpacePosition.w;
+
+		projectionSpacePosition.y = viewSpacePosition.y / viewSpacePosition.w;
+	
+		projectionSpacePosition.z = viewSpacePosition.z / viewSpacePosition.w;
+
+		projectionSpacePosition.w = viewSpacePosition.w;
+		
 
 		// Normalize to screen coordinates
-		projectionSpacePosition.x = (projectionSpacePosition.x / (static_cast<float>(m_Width) / m_Height * m_Camera.fov)) * 0.5f + 0.5f;
-		projectionSpacePosition.y = (1.0f - (projectionSpacePosition.y / m_Camera.fov)) * 0.5f;
+		projectionSpacePosition.x = projectionSpacePosition.x  * 0.5f + 0.5f;
+		projectionSpacePosition.y = (1.0f - projectionSpacePosition.y) * 0.5f;
 
 		// Store the transformed position in vertices_out
-		mesh.vertices_out[i].position.x = projectionSpacePosition.x * m_Width;
-		mesh.vertices_out[i].position.y = projectionSpacePosition.y * m_Height;
+		mesh.vertices_out[i].position.x = projectionSpacePosition.x;
+		mesh.vertices_out[i].position.y = projectionSpacePosition.y;
 		mesh.vertices_out[i].position.z = projectionSpacePosition.z;
+		mesh.vertices_out[i].position.w = projectionSpacePosition.w;
 		mesh.vertices_out[i].color = mesh.vertices[i].color;
 	}
 }

@@ -34,9 +34,20 @@ namespace dae
 
 		void VertexTransformationFunction(Mesh& mesh) const;
 
+		void SetIsFinalColor(bool isFinalColor)
+		{
+			m_IsFinalColor = isFinalColor;
+		}
+
+		bool GetIsFinalColor() const
+		{
+			return m_IsFinalColor;
+		}
+
 	private:
 		SDL_Window* m_pWindow{};
-
+		bool m_IsFinalColor { true };
+		
 		SDL_Surface* m_pFrontBuffer{ nullptr };
 		SDL_Surface* m_pBackBuffer{ nullptr };
 		uint32_t* m_pBackBufferPixels{};
