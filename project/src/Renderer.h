@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <vector>
-
 #include "Camera.h"
 
 struct SDL_Window;
@@ -44,6 +43,7 @@ namespace dae
 			return m_IsFinalColor;
 		}
 
+		
 	private:
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };

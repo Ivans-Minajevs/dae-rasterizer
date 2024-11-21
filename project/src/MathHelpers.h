@@ -31,6 +31,10 @@ namespace dae
 	{
 		return ((1 - factor) * a) + (factor * b);
 	}
+	inline float InvLerpf(float value, float from, float to)
+	{
+		return (value - from) / (to - from);
+	}
 
 	inline bool AreEqual(float a, float b, float epsilon = FLT_EPSILON)
 	{

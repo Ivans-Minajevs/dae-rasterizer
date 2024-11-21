@@ -218,25 +218,21 @@ void Renderer::Render() const
 							}
 							else
 							{
-								
-								finalColor = ColorRGB(interpolatedDepth, interpolatedDepth, interpolatedDepth);
-							
+								float remappedDepth = Lerpf(0.985f, 1.f, InvLerpf(zBufferValue, 0.985f, 1.f));
+								if (remappedDepth < 0)
+								{
+									continue;
+								}
+								finalColor = ColorRGB(remappedDepth, remappedDepth, remappedDepth);
+								finalColor.MaxToOne();
 							}
 							
-							if (m_IsFinalColor)
-							{
-								m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-									static_cast<uint8_t>(finalColor.r * 255),
-									static_cast<uint8_t>(finalColor.g * 255),
-									static_cast<uint8_t>(finalColor.b * 255));
-							} 
-							else
-							{
-								m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
-									static_cast<uint8_t>(finalColor.r * 255),
-									static_cast<uint8_t>(0.985f * 255),
-									static_cast<uint8_t>(1.f * 255));
-							}
+						
+							m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+								static_cast<uint8_t>(finalColor.r * 255),
+								static_cast<uint8_t>(finalColor.g * 255),
+								static_cast<uint8_t>(finalColor.b * 255));
+						
 							
 							
 							//if (m_IsFinalColor)
