@@ -90,6 +90,8 @@ void Renderer::Render()
             auto v1 = mesh.vertices_out[t1].position;
             auto v2 = mesh.vertices_out[t2].position;
 
+            if (v0.w < 0 || v1.w < 0 || v2.w < 0) continue;
+
             // Backface culling
             Vector3 edge0 = v1 - v0;
             Vector3 edge1 = v2 - v0;
@@ -119,9 +121,11 @@ void Renderer::Render()
             Vector2 edge1_2D(e1.x, e1.y);
             Vector2 edge2_2D(e2.x, e2.y);
 
+            
+
             float wProduct = v0.w * v1.w * v2.w;
 
-            if (v0.w < 0 || v1.w < 0 || v2.w < 0) continue;
+           
 
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
