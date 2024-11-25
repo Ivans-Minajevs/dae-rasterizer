@@ -47,7 +47,8 @@ namespace dae
 	private:
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
-		
+
+
 		Texture* m_Texture;
 
 		std::vector<Mesh> m_MeshesWorld;
