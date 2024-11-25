@@ -121,6 +121,8 @@ void Renderer::Render()
 
             float wProduct = v0.w * v1.w * v2.w;
 
+            if (v0.w < 0 || v1.w < 0 || v2.w < 0) continue;
+
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
             for (int py = minY; py < maxY; ++py) {
@@ -200,8 +202,6 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
-
-        if (viewSpacePosition.w <= 0) continue;
 
         Vector4 projectionSpacePosition = viewSpacePosition / viewSpacePosition.w;
        
