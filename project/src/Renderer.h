@@ -40,9 +40,14 @@ namespace dae
 			std::vector<Vertex_Out>& clippedVertices, std::vector<uint32_t>& clippedIndices);
 		void ClipPolygonAgainstPlane(const std::vector<Vertex_Out>& inputVertices,
 			std::vector<Vertex_Out>& outputVertices,
-			const std::function<float(const Vector4&)>& planeFunc);
+			const Vector4& plane);
 		Vertex_Out IntersectEdgeWithPlane(const Vertex_Out& v0, const Vertex_Out& v1,
 			float v0PlaneValue, float v1PlaneValue);
+
+		float PlaneValue(const Vector4& vertex, const Vector4& plane) {
+			return vertex.x * plane.x + vertex.y * plane.y + vertex.z * plane.z + vertex.w * plane.w;
+		}
+
 
 
 		void SetIsFinalColor(bool isFinalColor)
