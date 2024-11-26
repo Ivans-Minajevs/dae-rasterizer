@@ -56,6 +56,7 @@ void Renderer::Update(Timer* pTimer)
 
 void Renderer::Render()
 {
+    
     //@START: Reset depth buffer and clear screen
     std::fill(m_pDepthBufferPixels, m_pDepthBufferPixels + (m_Width * m_Height), std::numeric_limits<float>::max());
 
@@ -75,6 +76,9 @@ void Renderer::Render()
         // Parallelize over triangles
 #pragma omp parallel for
         for (int inx = 0; inx < mesh.indices.size() - 2; inx += (isTriangleList ? 3 : 1)) {
+
+
+
             auto t0 = mesh.indices[inx];
             auto t1 = mesh.indices[inx + 1];
             auto t2 = mesh.indices[inx + 2];
@@ -84,6 +88,8 @@ void Renderer::Render()
                 if (t0 == t1 || t1 == t2 || t2 == t0) continue;
                 if (inx % 2 != 0) std::swap(t1, t2);
             }
+            
+            
 
             // Vertex positions
             auto v0 = mesh.vertices_out[t0].position;
@@ -205,6 +211,9 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     // Transform vertices in parallel
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+
+        mesh.worldMatrix *= Matrix::CreateRotationY(PI_4);
+
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
         Vector4 projectionSpacePosition = viewSpacePosition / viewSpacePosition.w;
@@ -215,6 +224,8 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].position = projectionSpacePosition;
         mesh.vertices_out[i].color = mesh.vertices[i].color;
+
+        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
     }
 }
 
