@@ -38,7 +38,7 @@ namespace dae
 
 		void ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
 			std::vector<Vertex_Out>& clippedVertices, std::vector<uint32_t>& clippedIndices);
-		void ClipPolygonAgainstPlane(const std::vector<Vertex_Out>& inputVertices,
+		void ClipPolygonAgainstPlane(std::vector<Vertex_Out>& inputVertices,
 			std::vector<Vertex_Out>& outputVertices,
 			const Vector4& plane);
 		Vertex_Out IntersectEdgeWithPlane(const Vertex_Out& v0, const Vertex_Out& v1,

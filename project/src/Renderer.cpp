@@ -37,7 +37,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_MeshesWorld.push_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 60.f, { .0f, 1.f , -2.f });
+    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 1.f , -2.f });
 
     // Set number of threads for OpenMP
     omp_set_num_threads(4); // Adjust as needed
@@ -76,17 +76,14 @@ void Renderer::Render()
 
         // Parallelize over triangles
 #pragma omp parallel for
-        for (int inx = 0; inx < mesh.indices.size() - 2; inx += (isTriangleList ? 3 : 1)) {
+        for (int inx = 0; inx < mesh.indices.size(); inx += (isTriangleList ? 3 : 1)) {
 
             auto t0 = mesh.indices[inx];
             auto t1 = mesh.indices[inx + 1];
             auto t2 = mesh.indices[inx + 2];
 
-            // Handle Triangle Strip (if applicable)
-            if (mesh.primitiveTopology == PrimitiveTopology::TriangleStrip) {
-                if (t0 == t1 || t1 == t2 || t2 == t0) continue;
-                if (inx % 2 != 0) std::swap(t1, t2);
-            }
+            // Skip degenerate triangles
+            if (t0 == t1 || t1 == t2 || t2 == t0) continue;
 
             // Vertex positions
             auto v0 = mesh.vertices_out[t0].position;
@@ -125,16 +122,15 @@ void Renderer::Render()
             Vector2 edge1_2D(e1.x, e1.y);
             Vector2 edge2_2D(e2.x, e2.y);
 
-
             float wProduct = v0.w * v1.w * v2.w;
-            
+
             // Perform clipping (if needed)
             std::vector<Vertex_Out> clippedVertices;
             std::vector<uint32_t> clippedIndices;
             ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
 
             if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
-            
+
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
             for (int py = minY; py < maxY; ++py) {
@@ -185,19 +181,21 @@ void Renderer::Render()
                     finalColor.MaxToOne();
 
                     m_pBackBufferPixels[pixelIndex] = SDL_MapRGB(m_pBackBuffer->format,
-                        static_cast<uint8_t>(finalColor.r * 255),
-                        static_cast<uint8_t>(finalColor.g * 255),
-                        static_cast<uint8_t>(finalColor.b * 255));
+                        static_cast<uint8_t>(finalColor.r * 255.f),
+                        static_cast<uint8_t>(finalColor.g * 255.f),
+                        static_cast<uint8_t>(finalColor.b * 255.f));
                 }
             }
         }
     }
-
-    //@END: Update SDL Surface
+    // Unlock after rendering
     SDL_UnlockSurface(m_pBackBuffer);
-    SDL_BlitSurface(m_pBackBuffer, 0, m_pFrontBuffer, 0);
+
+    // Copy the back buffer to the front buffer for display
+    SDL_BlitSurface(m_pBackBuffer, nullptr, m_pFrontBuffer, nullptr);
     SDL_UpdateWindowSurface(m_pWindow);
 }
+
 
 
 void Renderer::VertexTransformationFunction(Mesh& mesh) const
@@ -235,31 +233,40 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
     std::vector<Vertex_Out>& clippedVertices, std::vector<uint32_t>& clippedIndices)
 {
-    std::vector<Vertex_Out> inputVertices = { v0, v1, v2 };
-    std::vector<Vertex_Out> outputVertices;
+    // Initialize clippedVertices directly with the input triangle vertices
+    clippedVertices.clear();
+    clippedVertices.push_back(v0);
+    clippedVertices.push_back(v1);
+    clippedVertices.push_back(v2);
 
-    std::vector<Vector4> planes  {
-     Vector4(1,  0,  0,  1), // Left Plane: x + w >= 0
-     Vector4(-1,  0,  0,  1), // Right Plane: -x + w >= 0
-     Vector4(0,  1,  0,  1), // Bottom Plane: y + w >= 0
-     Vector4(0, -1,  0,  1), // Top Plane: -y + w >= 0
-     Vector4(0,  0,  1,  1), // Near Plane: z + w >= 0
-     Vector4(0,  0, -1,  1)  // Far Plane: -z + w >= 0
+    std::vector<Vector4> planes = {
+        Vector4(1, 0, 0, 1),  // Left Plane: x + w >= 0
+        Vector4(-1, 0, 0, 1), // Right Plane: -x + w >= 0
+        Vector4(0, 1, 0, 1),  // Bottom Plane: y + w >= 0
+        Vector4(0, -1, 0, 1), // Top Plane: -y + w >= 0
+        Vector4(0, 0, 1, 1),  // Near Plane: z + w >= 0
+        Vector4(0, 0, -1, 1)  // Far Plane: -z + w >= 0
     };
 
+    // Loop over planes, and clip the triangle
     for (const auto& plane : planes)
     {
-        ClipPolygonAgainstPlane(inputVertices, outputVertices, plane);
-        inputVertices = outputVertices;
-        outputVertices.clear();
+        std::vector<Vertex_Out> outputVertices;
+        outputVertices.reserve(clippedVertices.size()); // Reserve space to avoid reallocations
 
-        if (inputVertices.size() < 3) return;
+        // Clip the polygon against the current plane
+        ClipPolygonAgainstPlane(clippedVertices, outputVertices, plane);
+
+        // If after clipping, there are fewer than 3 vertices, discard the triangle
+        if (outputVertices.size() < 3) return;
+
+        // Reuse clippedVertices for the next iteration
+        clippedVertices = std::move(outputVertices);
     }
 
-    uint32_t baseIndex = static_cast<uint32_t>(clippedVertices.size());
-    clippedVertices.insert(clippedVertices.end(), inputVertices.begin(), inputVertices.end());
-
-    for (size_t i = 1; i < inputVertices.size() - 1; ++i)
+    // Generate indices for the clipped triangle
+    uint32_t baseIndex = static_cast<uint32_t>(clippedVertices.size()) - 3;
+    for (size_t i = 1; i < clippedVertices.size() - 1; ++i)
     {
         clippedIndices.push_back(baseIndex);
         clippedIndices.push_back(baseIndex + static_cast<uint32_t>(i));
@@ -267,14 +274,17 @@ void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Ve
     }
 }
 
-void Renderer::ClipPolygonAgainstPlane(const std::vector<Vertex_Out>& inputVertices,
+void Renderer::ClipPolygonAgainstPlane(std::vector<Vertex_Out>& inputVertices,
     std::vector<Vertex_Out>& outputVertices,
     const Vector4& plane)
 {
     if (inputVertices.empty()) return;
 
-    const size_t vertexCount = inputVertices.size();
+    size_t vertexCount = inputVertices.size();
+    outputVertices.clear();
+    outputVertices.reserve(vertexCount);  // Reserve memory upfront to avoid reallocations
 
+    // Process each edge of the polygon
     for (size_t i = 0; i < vertexCount; ++i)
     {
         const Vertex_Out& currentVertex = inputVertices[i];
@@ -300,13 +310,19 @@ void Renderer::ClipPolygonAgainstPlane(const std::vector<Vertex_Out>& inputVerti
 }
 
 
+
 Vertex_Out Renderer::IntersectEdgeWithPlane(const Vertex_Out& v0, const Vertex_Out& v1,
     float v0PlaneValue, float v1PlaneValue)
 {
+    // Compute intersection ratio t between the two vertices
     float t = v0PlaneValue / (v0PlaneValue - v1PlaneValue);
 
     Vertex_Out intersection;
+
+    // Compute position
     intersection.position = v0.position + (t * (v1.position - v0.position)).ToVector4();
+
+    // Interpolate other attributes (color, uv, normal, etc.)
     intersection.color = v0.color + t * (v1.color - v0.color);
     intersection.uv = v0.uv + t * (v1.uv - v0.uv);
     intersection.normal = v0.normal + t * (v1.normal - v0.normal);
