@@ -22,7 +22,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
     // Initialize
     SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-    m_Texture = Texture::LoadFromFile("resources/tuktuk.png");
+    m_Texture = Texture::LoadFromFile("resources/jinx.png");
 
     // Create Buffers
     m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
@@ -32,12 +32,12 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_pDepthBufferPixels = new float[m_Width * m_Height];
 
     auto& meshRef = m_MeshesWorld.emplace_back();
-    Utils::ParseOBJ("resources/tuktuk.obj", meshRef.vertices, meshRef.indices);
+    Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
     meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
     m_MeshesWorld.push_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 60.f, { .0f, 5.f , -30.f });
+    m_Camera.Initialize(m_Width, m_Height, 60.f, { .0f, 1.f , -2.f });
 
     // Set number of threads for OpenMP
     omp_set_num_threads(4); // Adjust as needed
@@ -212,7 +212,10 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
 
+        
+
         mesh.worldMatrix *= Matrix::CreateRotationY(PI_4);
+       
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
