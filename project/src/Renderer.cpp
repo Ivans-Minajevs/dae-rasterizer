@@ -101,6 +101,7 @@ void Renderer::Render()
             Vector3 normal = Vector3::Cross(edge0, edge1);
             if (normal.z <= 0) continue;
             
+            //if ((mesh.vertices_out[t0].normal.z + mesh.vertices_out[t1].normal.z + mesh.vertices_out[t2].normal.z) / 3.f <= 0) continue;
 
             // Transform coordinates to screen space
 
@@ -245,6 +246,8 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent * rotVector;
+
+        mesh.vertices_out[i].viewDirection = mesh.vertices[i].viewDirection;
 
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
     }
