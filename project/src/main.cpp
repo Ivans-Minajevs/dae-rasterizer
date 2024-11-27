@@ -80,6 +80,16 @@ int main(int argc, char* args[])
 					{
 						pRenderer->SetIsFinalColor(true);
 					}
+
+				if (e.key.keysym.scancode == SDL_SCANCODE_F5)
+					if (pRenderer->GetIsRotating())
+					{
+						pRenderer->SetIsRotating(false);
+					}
+					else
+					{
+						pRenderer->SetIsRotating(true);
+					}
 				
 				break;
 			}

@@ -60,10 +60,21 @@ namespace dae
 			return m_IsFinalColor;
 		}
 
+		void SetIsRotating(bool isRotating)
+		{
+			m_IsRotating = isRotating;
+		}
+
+		bool GetIsRotating() const
+		{
+			return m_IsRotating;
+		}
+
 		
 	private:
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
+		bool m_IsRotating{ true };
 
 		Texture* m_Texture;
 		std::vector<Mesh> m_MeshesWorld;

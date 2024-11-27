@@ -22,7 +22,8 @@ Renderer::Renderer(SDL_Window* pWindow) :
     // Initialize
     SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-    m_Texture = Texture::LoadFromFile("resources/jinx.png");
+    m_Texture = Texture::LoadFromFile("resources/tuktuk.png");
+    //m_Texture = Texture::LoadFromFile("resources/jinx.png");
 
     // Create Buffers
     m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
@@ -32,12 +33,13 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_pDepthBufferPixels = new float[m_Width * m_Height];
 
     auto& meshRef = m_MeshesWorld.emplace_back();
-    Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
+    Utils::ParseOBJ("resources/tuktuk.obj", meshRef.vertices, meshRef.indices);
+   //Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
     meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
     m_MeshesWorld.push_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 1.f , -2.f });
+    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 5.f , -20.f });
 
     // Set number of threads for OpenMP
     omp_set_num_threads(4); // Adjust as needed
@@ -60,7 +62,7 @@ void Renderer::Render()
     std::fill(m_pDepthBufferPixels, m_pDepthBufferPixels + (m_Width * m_Height), std::numeric_limits<float>::max());
 
     // Clear screen with black color
-    SDL_Color clearColor = { 0, 0, 0, 255 };
+    SDL_Color clearColor = { 150, 150, 150, 255 };
     Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
     SDL_FillRect(m_pBackBuffer, nullptr, color);
 
@@ -77,7 +79,7 @@ void Renderer::Render()
         // Parallelize over triangles
 #pragma omp parallel for
         for (int inx = 0; inx < mesh.indices.size(); inx += (isTriangleList ? 3 : 1)) {
-
+            
             auto t0 = mesh.indices[inx];
             auto t1 = mesh.indices[inx + 1];
             auto t2 = mesh.indices[inx + 2];
@@ -98,8 +100,14 @@ void Renderer::Render()
             Vector3 edge1 = v2 - v0;
             Vector3 normal = Vector3::Cross(edge0, edge1);
             if (normal.z <= 0) continue;
+            
 
             // Transform coordinates to screen space
+
+            if ((v0.x < -1  || v0.x > 1) || (v1.x < -1 || v1.x > 1) || (v2.x < -1 || v2.x > 1)
+                || ((v0.y < -1 || v0.y > 1) || (v1.y < -1 || v1.y > 1) || (v2.y < -1 || v2.y > 1))
+                || ((v0.z < 0 || v0.z > 1) || (v1.z < 0 || v1.z > 1) || (v2.z < 0 || v2.z > 1))) continue;
+
             v0.x *= m_Width;
             v1.x *= m_Width;
             v2.x *= m_Width;
@@ -125,11 +133,11 @@ void Renderer::Render()
             float wProduct = v0.w * v1.w * v2.w;
 
             // Perform clipping (if needed)
-            std::vector<Vertex_Out> clippedVertices;
-            std::vector<uint32_t> clippedIndices;
-            ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
-
-            if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
+           //std::vector<Vertex_Out> clippedVertices;
+           //std::vector<uint32_t> clippedIndices;
+           //ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
+           //
+           //if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
 
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
@@ -155,9 +163,15 @@ void Renderer::Render()
                     float interpolationScale2 = weightP2 * reciprocalTotalArea;
 
                     // Compute z-buffer value for depth testing
-                    float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
-                        v0.z * v2.z * interpolationScale1 +
-                        v0.z * v1.z * interpolationScale2);
+                    float zBufferValue = 1.f / (1.f / v0.z * interpolationScale0 +
+                        1.f / v1.z * interpolationScale1 +
+                        1.f / v2.z * interpolationScale2);
+
+                    //if (zBufferValue < 0 || zBufferValue > 1) continue;
+
+                   // float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
+                   //     v0.z * v2.z * interpolationScale1 +
+                   //     v0.z * v1.z * interpolationScale2);
 
                     int pixelIndex = px + (py * m_Width);
                     if (zBufferValue >= m_pDepthBufferPixels[pixelIndex]) continue;
@@ -206,14 +220,17 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     // Resize vertices_out to match input vertices
     mesh.vertices_out.resize(mesh.vertices.size());
 
+    Matrix matrixRot = Matrix::CreateRotationY(PI_4);
+
     // Transform vertices in parallel
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
 
-        
-
-        mesh.worldMatrix *= Matrix::CreateRotationY(PI_4);
-       
+        if (m_IsRotating)
+        {
+            mesh.worldMatrix *= matrixRot;
+        }
+        Vector3 rotVector = (mesh.worldMatrix.GetAxisX(), mesh.worldMatrix.GetAxisY(), mesh.worldMatrix.GetAxisZ());
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
@@ -225,6 +242,9 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].position = projectionSpacePosition;
         mesh.vertices_out[i].color = mesh.vertices[i].color;
+
+        mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
+        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent * rotVector;
 
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
     }
