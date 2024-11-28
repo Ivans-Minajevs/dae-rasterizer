@@ -341,26 +341,25 @@ void Renderer::PixelShading(Vertex_Out& v)
     float exp = gloss.r * shininess;
     ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
 
-   // switch (m_CurrentShadingMode)
-   // {
-   // case ShadingMode::ObservedArea:
-   //     v.color += observedArea;
-   //     break;
-   //
-   // case ShadingMode::Diffuse:
-   //     v.color += diffuse * observedArea * (-lightIntensity);
-   //     break;
-   //
-   // case ShadingMode::Specular:
-   //     v.color += specular * observedArea;
-   //     break;
-   //
-   // case ShadingMode::Combined:
-   //     v.color += ambient + specular + diffuse * observedArea * (-lightIntensity);
-   //     break;
-   // }
+    switch (m_CurrentShadingMode)
+    {
+    case ShadingMode::ObservedArea:
+        v.color += observedArea;
+        break;
 
-    v.color = observedArea;
+    case ShadingMode::Diffuse:
+        v.color += diffuse * observedArea * (-lightIntensity);
+        break;
+
+    case ShadingMode::Specular:
+        v.color += specular * observedArea;
+        break;
+
+    case ShadingMode::Combined:
+        v.color += ambient + specular + diffuse * observedArea * (-lightIntensity);
+        break;
+    }
+
     v.color.MaxToOne();
 }
 
