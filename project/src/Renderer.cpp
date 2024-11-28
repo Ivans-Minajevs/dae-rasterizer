@@ -293,8 +293,15 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
         mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformVector(mesh.vertices[i].normal).Normalized();
 
         mesh.vertices_out[i].tangent = rotatedWorldMatrix.TransformVector(mesh.vertices[i].tangent).Normalized();
+       
+      
+        auto rotatedWorldPosition = rotatedWorldMatrix.TransformVector(mesh.vertices[i].position);
+        mesh.vertices_out[i].viewDirection = rotatedWorldPosition - m_Camera.origin;
+        mesh.vertices_out[i].viewDirection.Normalize();
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
+
+        
 
         Vector4 projectionSpacePosition = viewSpacePosition / viewSpacePosition.w;
        
@@ -308,8 +315,7 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
 
-        mesh.vertices_out[i].viewDirection = mesh.vertices[i].position;
-        mesh.vertices_out[i].viewDirection.Normalize();
+       
     }
 }
 
