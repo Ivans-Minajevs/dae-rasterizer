@@ -308,7 +308,8 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
 
-        mesh.vertices_out[i].viewDirection = mesh.vertices[i].viewDirection;
+        mesh.vertices_out[i].viewDirection = mesh.vertices[i].position;
+        mesh.vertices_out[i].viewDirection.Normalize();
     }
 }
 
@@ -354,7 +355,7 @@ void Renderer::PixelShading(Vertex_Out& v)
         break;
 
     case ShadingMode::Specular:
-        v.color += specular;
+        v.color += specular * observedArea;
         break;
 
     case ShadingMode::Combined:
