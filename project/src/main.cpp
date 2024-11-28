@@ -72,13 +72,14 @@ int main(int argc, char* args[])
 					takeScreenshot = true;
 
 				if (e.key.keysym.scancode == SDL_SCANCODE_F4)
-					if(pRenderer->GetIsFinalColor())
+					
+					if(pRenderer->GetDisplayMode() == Renderer::DisplayMode::FinalColor)
 					{
-						pRenderer->SetIsFinalColor(false);
+						pRenderer->SetDisplayMode(Renderer::DisplayMode::DepthBuffer);
 					}
 					else
 					{
-						pRenderer->SetIsFinalColor(true);
+						pRenderer->SetDisplayMode(Renderer::DisplayMode::FinalColor);
 					}
 
 				if (e.key.keysym.scancode == SDL_SCANCODE_F5)
@@ -90,7 +91,17 @@ int main(int argc, char* args[])
 					{
 						pRenderer->SetIsRotating(true);
 					}
-				
+		
+				if (e.key.keysym.scancode == SDL_SCANCODE_F6)
+				{
+					pRenderer->SetDisplayMode(Renderer::DisplayMode::NormalMap);
+				}
+
+				if (e.key.keysym.scancode == SDL_SCANCODE_F7)
+				{
+					pRenderer->SetDisplayMode(Renderer::DisplayMode::ShadingMode);
+					pRenderer->CycleShadingMode();
+				}
 				break;
 			}
 		}

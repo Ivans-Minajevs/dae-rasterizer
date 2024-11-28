@@ -50,6 +50,7 @@ namespace dae
 		}
 
 
+		void PixelShading(Vertex_Out& v);
 
 		void SetIsFinalColor(bool isFinalColor)
 		{
@@ -71,8 +72,55 @@ namespace dae
 			return m_IsRotating;
 		}
 
+		enum class DisplayMode {
+			FinalColor,
+			DepthBuffer,
+			NormalMap,
+			ShadingMode
+		};
+
+		enum class ShadingMode
+		{
+			ObservedArea,
+			Diffuse,
+			Specular,
+			Combined
+		};
+
+		void CycleShadingMode()
+		{
+			switch (m_CurrentShadingMode)
+			{
+			case ShadingMode::Combined:
+				m_CurrentShadingMode = ShadingMode::ObservedArea;
+				break;
+			case ShadingMode::ObservedArea:
+				m_CurrentShadingMode = ShadingMode::Diffuse;
+				break;
+			case ShadingMode::Diffuse:
+				m_CurrentShadingMode = ShadingMode::Specular;
+				break;
+			case ShadingMode::Specular:
+				m_CurrentShadingMode = ShadingMode::Combined;
+				break;
+			}
+		}
+
+		void SetDisplayMode(DisplayMode displayMode)
+		{
+			m_CurrentDisplayMode = displayMode;
+		}
+
+		DisplayMode GetDisplayMode() const
+		{
+			return m_CurrentDisplayMode;
+		}
 		
 	private:
+
+		ShadingMode m_CurrentShadingMode{ ShadingMode::Combined };
+		DisplayMode m_CurrentDisplayMode{ DisplayMode::FinalColor };
+
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
 		bool m_IsRotating{ true };

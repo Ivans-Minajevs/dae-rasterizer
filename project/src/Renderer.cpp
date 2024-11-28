@@ -57,7 +57,8 @@ void Renderer::Update(Timer* pTimer)
 
     if (m_IsRotating)
     {
-        auto yawAngle = (cos(pTimer->GetTotal()) + 1.f) / 2.f * PI_2;
+        auto yawAngle = (pTimer->GetTotal() * PI / 4);
+        //m_MatrixRot.CreateRotationY(yawAngle);
         m_MatrixRot = Matrix::CreateRotationY(yawAngle);
     }
 }
@@ -151,6 +152,7 @@ void Renderer::Render()
 #pragma omp parallel for
             for (int py = minY; py < maxY; ++py) {
                 for (int px = minX; px < maxX; ++px) {
+                    ColorRGB finalColor;
                     auto P = Vector2(px + 0.5f, py + 0.5f);
 
                     auto p0 = P - Vector2(v1.x, v1.y);
@@ -194,13 +196,54 @@ void Renderer::Render()
                     if (interpolatedDepth <= 0) continue;
 
                     // Texture sampling
-                    Vector2 uv = (mesh.vertices[t0].uv * v1.w * v2.w * interpolationScale0 +
+                    Vertex_Out pixelVertex;
+
+                    pixelVertex.position = { float(px), float(py), zBufferValue, interpolatedDepth };
+
+
+                    pixelVertex.uv = (mesh.vertices[t0].uv * v1.w * v2.w * interpolationScale0 +
                         mesh.vertices[t1].uv * v0.w * v2.w * interpolationScale1 +
                         mesh.vertices[t2].uv * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
 
+                    pixelVertex.normal = (mesh.vertices[t0].normal * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices[t1].normal * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices[t2].normal * v0.w * v1.w * interpolationScale2) *
+                        interpolatedDepth / wProduct;
+                    pixelVertex.normal = pixelVertex.normal.Normalized();
+
+                    pixelVertex.tangent = (mesh.vertices[t0].tangent * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices[t1].tangent * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices[t2].tangent * v0.w * v1.w * interpolationScale2) *
+                        interpolatedDepth / wProduct;
+
+                    pixelVertex.viewDirection = (mesh.vertices[t0].viewDirection * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices[t1].viewDirection * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices[t2].viewDirection * v0.w * v1.w * interpolationScale2) *
+                        interpolatedDepth / wProduct;
+
+                    pixelVertex.color = colors::Black;
+
                     // If texture mapping is enabled, sample the texture
-                    ColorRGB finalColor = m_IsFinalColor ? m_Texture->Sample(uv) : ColorRGB(zBufferValue, zBufferValue, zBufferValue);
+
+                    if (m_CurrentDisplayMode == DisplayMode::FinalColor)
+                    {
+                        finalColor = m_Texture->Sample(pixelVertex.uv);
+                    }
+                    if (m_CurrentDisplayMode == DisplayMode::DepthBuffer)
+                    {
+                        finalColor = ColorRGB(zBufferValue, zBufferValue, zBufferValue);
+                    }
+                    if (m_CurrentDisplayMode == DisplayMode::NormalMap)
+                    {
+                        finalColor = m_Texture->Sample(pixelVertex.uv); //for now
+                    }
+                    if (m_CurrentDisplayMode == DisplayMode::ShadingMode)
+                    {
+                        PixelShading(pixelVertex);
+                        finalColor = pixelVertex.color;
+                    }
+                    
                     finalColor.MaxToOne();
 
                     m_pBackBufferPixels[pixelIndex] = SDL_MapRGB(m_pBackBuffer->format,
@@ -236,7 +279,7 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
 
         //mesh.worldMatrix *= m_MatrixRot;
-        mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformPoint(mesh.vertices[i].normal.ToVector4());
+        mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformVector(mesh.vertices[i].normal);
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
@@ -250,15 +293,33 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
         mesh.vertices_out[i].color = mesh.vertices[i].color;
 
         //mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
-        //mesh.vertices_out[i].tangent = mesh.vertices[i].tangent * rotVector;
+        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
 
         mesh.vertices_out[i].viewDirection = mesh.vertices[i].viewDirection;
     }
 }
 
-void dae::Renderer::PixelShading(const Vertex_Out& v)
+void Renderer::PixelShading(Vertex_Out& v)
 {
+    ColorRGB tempColor{ colors::Black };
+
     Vector3 lightDirection = { .577f, -.577f,  .577f };
+
+    float cosOfAngle{ Vector3::Dot(v.normal, -lightDirection) };
+
+    if (cosOfAngle < 0.f) return;
+
+    const ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
+    
+    switch (m_CurrentShadingMode)
+    {
+    case ShadingMode::ObservedArea:
+        tempColor += observedArea;
+        break;
+    }
+
+    v.color = tempColor;
+
 
 }
 
