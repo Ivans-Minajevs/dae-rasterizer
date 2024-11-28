@@ -72,10 +72,19 @@ namespace dae
 			return m_IsRotating;
 		}
 
+		void SetIsNormalMap(bool isNormalMap)
+		{
+			m_IsNormalMap = isNormalMap;
+		}
+
+		bool GetIsNormalMap() const
+		{
+			return m_IsNormalMap;
+		}
+
 		enum class DisplayMode {
 			FinalColor,
 			DepthBuffer,
-			NormalMap,
 			ShadingMode
 		};
 
@@ -115,6 +124,30 @@ namespace dae
 		{
 			return m_CurrentDisplayMode;
 		}
+
+
+
+		static ColorRGB Lambert(const ColorRGB cd, const float kd = 1)
+		{
+			const ColorRGB rho = kd * cd;
+			return rho / PI;
+		}
+
+		static ColorRGB Lambert(const ColorRGB cd, const ColorRGB& kd)
+		{
+			const ColorRGB rho = kd * cd;
+			return rho / PI;
+		}
+
+	
+		static ColorRGB Phong(const ColorRGB ks, const float exp, const Vector3& l, const Vector3& v, const Vector3& n)
+		{
+			const Vector3 reflect = l - (2 * std::max(Vector3::Dot(n, l), 0.f) * n);
+			const float cosAlpha = std::max(Vector3::Dot(reflect, v), 0.f);
+
+			return ks * std::powf(cosAlpha, exp);
+		}
+		
 		
 	private:
 
@@ -124,10 +157,16 @@ namespace dae
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
 		bool m_IsRotating{ true };
+		bool m_IsNormalMap{ false };
 
-		Texture* m_Texture;
+		Texture* m_DiffuseTexture;
+		Texture* m_NormalMapTexture;
+		Texture* m_GlossTexture;
+		Texture* m_SpecularTexture;
+
 		std::vector<Mesh> m_MeshesWorld;
 		Matrix m_MatrixRot;
+		
 
 		SDL_Surface* m_pFrontBuffer{ nullptr };
 		SDL_Surface* m_pBackBuffer{ nullptr };

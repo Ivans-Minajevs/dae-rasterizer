@@ -94,13 +94,21 @@ int main(int argc, char* args[])
 		
 				if (e.key.keysym.scancode == SDL_SCANCODE_F6)
 				{
-					pRenderer->SetDisplayMode(Renderer::DisplayMode::NormalMap);
+					if (pRenderer->GetIsNormalMap())
+					{
+						pRenderer->SetIsNormalMap(false);
+					}
+					else
+					{
+						pRenderer->SetIsNormalMap(true);
+					}
+					
 				}
 
 				if (e.key.keysym.scancode == SDL_SCANCODE_F7)
 				{
 					pRenderer->SetDisplayMode(Renderer::DisplayMode::ShadingMode);
-					pRenderer->CycleShadingMode();
+					//pRenderer->CycleShadingMode();
 				}
 				break;
 			}

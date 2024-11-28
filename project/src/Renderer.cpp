@@ -22,7 +22,10 @@ Renderer::Renderer(SDL_Window* pWindow) :
     // Initialize
     SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-    m_Texture = Texture::LoadFromFile("resources/vehicle_diffuse.png");
+    m_DiffuseTexture = Texture::LoadFromFile("resources/vehicle_diffuse.png");
+    m_GlossTexture = Texture::LoadFromFile("resources/vehicle_gloss.png");
+    m_NormalMapTexture = Texture::LoadFromFile("resources/vehicle_normal.png");
+    m_SpecularTexture = Texture::LoadFromFile("resources/vehicle_specular.png");
     //m_Texture = Texture::LoadFromFile("resources/jinx.png");
 
     // Create Buffers
@@ -32,11 +35,12 @@ Renderer::Renderer(SDL_Window* pWindow) :
 
     m_pDepthBufferPixels = new float[m_Width * m_Height];
 
-    auto& meshRef = m_MeshesWorld.emplace_back();
+    //auto& meshRef = m_MeshesWorld.emplace_back();
+    Mesh meshRef{};
     Utils::ParseOBJ("resources/vehicle.obj", meshRef.vertices, meshRef.indices);
    //Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
     meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
-    m_MeshesWorld.push_back(meshRef);
+    m_MeshesWorld.emplace_back(meshRef);
 
     // Initialize Camera
     m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 2.f , -40.f });
@@ -48,7 +52,10 @@ Renderer::Renderer(SDL_Window* pWindow) :
 Renderer::~Renderer()
 {
     delete[] m_pDepthBufferPixels;
-    delete m_Texture;
+    delete m_DiffuseTexture;
+    delete m_GlossTexture;
+    delete m_NormalMapTexture;
+    delete m_SpecularTexture;
 }
 
 void Renderer::Update(Timer* pTimer)
@@ -69,7 +76,7 @@ void Renderer::Render()
     std::fill(m_pDepthBufferPixels, m_pDepthBufferPixels + (m_Width * m_Height), std::numeric_limits<float>::max());
 
     // Clear screen with black color
-    SDL_Color clearColor = { 150, 150, 150, 255 };
+    SDL_Color clearColor = { 100, 100, 100, 255 };
     Uint32 color = SDL_MapRGB(m_pBackBuffer->format, clearColor.r, clearColor.g, clearColor.b);
     SDL_FillRect(m_pBackBuffer, nullptr, color);
 
@@ -142,11 +149,11 @@ void Renderer::Render()
             float wProduct = v0.w * v1.w * v2.w;
 
             // Perform clipping (if needed)
-           //std::vector<Vertex_Out> clippedVertices;
-           //std::vector<uint32_t> clippedIndices;
-           //ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
-           //
-           //if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
+            std::vector<Vertex_Out> clippedVertices;
+            std::vector<uint32_t> clippedIndices;
+            ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
+            
+            if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
 
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
@@ -177,7 +184,7 @@ void Renderer::Render()
                         1.f / v1.z * interpolationScale1 +
                         1.f / v2.z * interpolationScale2);
 
-                    //if (zBufferValue < 0 || zBufferValue > 1) continue;
+                    if (zBufferValue < 0 || zBufferValue > 1) continue;
 
                    // float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
                    //     v0.z * v2.z * interpolationScale1 +
@@ -198,28 +205,36 @@ void Renderer::Render()
                     // Texture sampling
                     Vertex_Out pixelVertex;
 
-                    pixelVertex.position = { float(px), float(py), zBufferValue, interpolatedDepth };
+                    //pixelVertex.position = (mesh.vertices[t0].position.ToVector4() * v1.w * v2.w * interpolationScale0 +
+                    //    mesh.vertices[t1].position.ToVector4() * v0.w * v2.w * interpolationScale1 +
+                    //    mesh.vertices[t2].position.ToVector4() * v0.w * v1.w * interpolationScale2)*
+                    //    interpolatedDepth / wProduct;
+                    //
+                    //pixelVertex.position.z = zBufferValue;
+                    //pixelVertex.position.w = interpolatedDepth;
+                   pixelVertex.position = { float(px), float(py), zBufferValue, interpolatedDepth };
+                    
 
 
-                    pixelVertex.uv = (mesh.vertices[t0].uv * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices[t1].uv * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices[t2].uv * v0.w * v1.w * interpolationScale2) *
+                    pixelVertex.uv = (mesh.vertices_out[t0].uv * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices_out[t1].uv * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices_out[t2].uv * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
 
-                    pixelVertex.normal = (mesh.vertices[t0].normal * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices[t1].normal * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices[t2].normal * v0.w * v1.w * interpolationScale2) *
+                    pixelVertex.normal = (mesh.vertices_out[t0].normal * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices_out[t1].normal * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices_out[t2].normal * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
                     pixelVertex.normal = pixelVertex.normal.Normalized();
 
-                    pixelVertex.tangent = (mesh.vertices[t0].tangent * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices[t1].tangent * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices[t2].tangent * v0.w * v1.w * interpolationScale2) *
+                    pixelVertex.tangent = (mesh.vertices_out[t0].tangent * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices_out[t1].tangent * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices_out[t2].tangent * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
 
-                    pixelVertex.viewDirection = (mesh.vertices[t0].viewDirection * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices[t1].viewDirection * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices[t2].viewDirection * v0.w * v1.w * interpolationScale2) *
+                    pixelVertex.viewDirection = (mesh.vertices_out[t0].viewDirection * v1.w * v2.w * interpolationScale0 +
+                        mesh.vertices_out[t1].viewDirection * v0.w * v2.w * interpolationScale1 +
+                        mesh.vertices_out[t2].viewDirection * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
 
                     pixelVertex.color = colors::Black;
@@ -228,15 +243,11 @@ void Renderer::Render()
 
                     if (m_CurrentDisplayMode == DisplayMode::FinalColor)
                     {
-                        finalColor = m_Texture->Sample(pixelVertex.uv);
+                        finalColor = m_DiffuseTexture->Sample(pixelVertex.uv);
                     }
                     if (m_CurrentDisplayMode == DisplayMode::DepthBuffer)
                     {
                         finalColor = ColorRGB(zBufferValue, zBufferValue, zBufferValue);
-                    }
-                    if (m_CurrentDisplayMode == DisplayMode::NormalMap)
-                    {
-                        finalColor = m_Texture->Sample(pixelVertex.uv); //for now
                     }
                     if (m_CurrentDisplayMode == DisplayMode::ShadingMode)
                     {
@@ -279,7 +290,9 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
 
         //mesh.worldMatrix *= m_MatrixRot;
-        mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformVector(mesh.vertices[i].normal);
+        mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformVector(mesh.vertices[i].normal).Normalized();
+
+        mesh.vertices_out[i].tangent = rotatedWorldMatrix.TransformVector(mesh.vertices[i].tangent).Normalized();
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
@@ -291,8 +304,8 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
         mesh.vertices_out[i].position = projectionSpacePosition;
         mesh.vertices_out[i].color = mesh.vertices[i].color;
+        mesh.vertices_out[i].uv = mesh.vertices[i].uv;
 
-        //mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
         mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
 
         mesh.vertices_out[i].viewDirection = mesh.vertices[i].viewDirection;
@@ -301,26 +314,54 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 
 void Renderer::PixelShading(Vertex_Out& v)
 {
-    ColorRGB tempColor{ colors::Black };
+   // ColorRGB tempColor{ ColorRGB(0.f, 0.f, 0.f)};
 
-    Vector3 lightDirection = { .577f, -.577f,  .577f };
-
-    float cosOfAngle{ Vector3::Dot(v.normal, -lightDirection) };
+    Vector3 lightDirection = { .577f, -.577f,  .577f }; 
+    float lightIntensity = 7.f;
+    float shininess = 25.f;
+    ColorRGB ambient = { .025f,.025f,.025f };
+   
+    //if (m_IsNormalMap)
+    //{
+    //    Vector3 binormal = Vector3::Cross(v.normal, v.tangent);
+    //    Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero };
+    //
+    //    const ColorRGB normalColor = m_NormalMapTexture->Sample(v.uv);
+    //    v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f)).Normalized());
+    //}
+ 
+    float cosOfAngle{ Vector3::Dot(v.normal.Normalized(), -lightDirection.Normalized())};
 
     if (cosOfAngle < 0.f) return;
 
     const ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
-    
-    switch (m_CurrentShadingMode)
-    {
-    case ShadingMode::ObservedArea:
-        tempColor += observedArea;
-        break;
-    }
+    //
+    //ColorRGB diffuse = Lambert(m_DiffuseTexture->Sample(v.uv));
+    //ColorRGB gloss = m_GlossTexture->Sample(v.uv);
+    //float exp = gloss.r * shininess;
+    //ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
 
-    v.color = tempColor;
+   // switch (m_CurrentShadingMode)
+   // {
+   // case ShadingMode::ObservedArea:
+   //     v.color += observedArea;
+   //     break;
+   //
+   // case ShadingMode::Diffuse:
+   //     v.color += diffuse * observedArea * (-lightIntensity);
+   //     break;
+   //
+   // case ShadingMode::Specular:
+   //     v.color += specular * observedArea;
+   //     break;
+   //
+   // case ShadingMode::Combined:
+   //     v.color += ambient + specular + diffuse * observedArea * (-lightIntensity);
+   //     break;
+   // }
 
-
+    v.color = observedArea;
+    v.color.MaxToOne();
 }
 
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
