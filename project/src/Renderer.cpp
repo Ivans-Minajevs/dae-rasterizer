@@ -38,12 +38,12 @@ Renderer::Renderer(SDL_Window* pWindow) :
     //auto& meshRef = m_MeshesWorld.emplace_back();
     Mesh meshRef{};
     Utils::ParseOBJ("resources/vehicle.obj", meshRef.vertices, meshRef.indices);
-   //Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
+  
     meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
     m_MeshesWorld.emplace_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 2.f , -40.f });
+    m_Camera.Initialize(m_Width, m_Height, 45.f, { 0.f, 0.f , -50.f });
 
     // Set number of threads for OpenMP
     omp_set_num_threads(4); // Adjust as needed
@@ -62,10 +62,10 @@ void Renderer::Update(Timer* pTimer)
 {
     m_Camera.Update(pTimer);
 
+    float yawAngle;
     if (m_IsRotating)
     {
-        auto yawAngle = (pTimer->GetTotal() * PI / 4);
-        //m_MatrixRot.CreateRotationY(yawAngle);
+        yawAngle  = (pTimer->GetTotal() * PI / 4);
         m_MatrixRot = Matrix::CreateRotationY(yawAngle);
     }
 }
@@ -212,7 +212,7 @@ void Renderer::Render()
                     //
                     //pixelVertex.position.z = zBufferValue;
                     //pixelVertex.position.w = interpolatedDepth;
-                   pixelVertex.position = { float(px), float(py), zBufferValue, interpolatedDepth };
+                   pixelVertex.position = { P.x, P.y, zBufferValue, interpolatedDepth };
                     
 
 
@@ -337,8 +337,10 @@ void Renderer::PixelShading(Vertex_Out& v)
     const ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
     
     ColorRGB diffuse = Lambert(m_DiffuseTexture->Sample(v.uv));
+
     ColorRGB gloss = m_GlossTexture->Sample(v.uv);
     float exp = gloss.r * shininess;
+
     ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
 
     switch (m_CurrentShadingMode)
@@ -348,19 +350,18 @@ void Renderer::PixelShading(Vertex_Out& v)
         break;
 
     case ShadingMode::Diffuse:
-        v.color += diffuse * observedArea * (-lightIntensity);
+        v.color += diffuse * observedArea * lightIntensity;
         break;
 
     case ShadingMode::Specular:
-        v.color += specular * observedArea;
+        v.color += specular;
         break;
 
     case ShadingMode::Combined:
-        v.color += ambient + specular + diffuse * observedArea * (-lightIntensity);
+        v.color += specular + diffuse * observedArea * lightIntensity;
         break;
     }
-
-    v.color.MaxToOne();
+    v.color += ambient;
 }
 
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
