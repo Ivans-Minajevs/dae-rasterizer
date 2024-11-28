@@ -321,25 +321,25 @@ void Renderer::PixelShading(Vertex_Out& v)
     float shininess = 25.f;
     ColorRGB ambient = { .025f,.025f,.025f };
    
-    //if (m_IsNormalMap)
-    //{
-    //    Vector3 binormal = Vector3::Cross(v.normal, v.tangent);
-    //    Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero };
-    //
-    //    const ColorRGB normalColor = m_NormalMapTexture->Sample(v.uv);
-    //    v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f)).Normalized());
-    //}
+    if (m_IsNormalMap)
+    {
+        Vector3 binormal = Vector3::Cross(v.normal, v.tangent);
+        Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero };
+
+        const ColorRGB normalColor = m_NormalMapTexture->Sample(v.uv);
+        v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f)).Normalized());
+    }
  
     float cosOfAngle{ Vector3::Dot(v.normal.Normalized(), -lightDirection.Normalized())};
 
     if (cosOfAngle < 0.f) return;
 
     const ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
-    //
-    //ColorRGB diffuse = Lambert(m_DiffuseTexture->Sample(v.uv));
-    //ColorRGB gloss = m_GlossTexture->Sample(v.uv);
-    //float exp = gloss.r * shininess;
-    //ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
+    
+    ColorRGB diffuse = Lambert(m_DiffuseTexture->Sample(v.uv));
+    ColorRGB gloss = m_GlossTexture->Sample(v.uv);
+    float exp = gloss.r * shininess;
+    ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
 
    // switch (m_CurrentShadingMode)
    // {
