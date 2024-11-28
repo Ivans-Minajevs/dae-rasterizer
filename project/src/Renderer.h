@@ -35,6 +35,7 @@ namespace dae
 		bool SaveBufferToImage() const;
 
 		void VertexTransformationFunction(Mesh& mesh) const;
+		void PixelShading(const Vertex_Out& v);
 
 		void ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
 			std::vector<Vertex_Out>& clippedVertices, std::vector<uint32_t>& clippedIndices);
@@ -78,6 +79,7 @@ namespace dae
 
 		Texture* m_Texture;
 		std::vector<Mesh> m_MeshesWorld;
+		Matrix m_MatrixRot;
 
 		SDL_Surface* m_pFrontBuffer{ nullptr };
 		SDL_Surface* m_pBackBuffer{ nullptr };

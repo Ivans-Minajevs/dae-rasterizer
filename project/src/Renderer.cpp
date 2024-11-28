@@ -22,7 +22,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
     // Initialize
     SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-    m_Texture = Texture::LoadFromFile("resources/tuktuk.png");
+    m_Texture = Texture::LoadFromFile("resources/vehicle_diffuse.png");
     //m_Texture = Texture::LoadFromFile("resources/jinx.png");
 
     // Create Buffers
@@ -33,13 +33,13 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_pDepthBufferPixels = new float[m_Width * m_Height];
 
     auto& meshRef = m_MeshesWorld.emplace_back();
-    Utils::ParseOBJ("resources/tuktuk.obj", meshRef.vertices, meshRef.indices);
+    Utils::ParseOBJ("resources/vehicle.obj", meshRef.vertices, meshRef.indices);
    //Utils::ParseOBJ("resources/jinx.obj", meshRef.vertices, meshRef.indices);
     meshRef.primitiveTopology = PrimitiveTopology::TriangleList;
     m_MeshesWorld.push_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 5.f , -20.f });
+    m_Camera.Initialize(m_Width, m_Height, 60.f, { 0.f, 2.f , -40.f });
 
     // Set number of threads for OpenMP
     omp_set_num_threads(4); // Adjust as needed
@@ -54,6 +54,12 @@ Renderer::~Renderer()
 void Renderer::Update(Timer* pTimer)
 {
     m_Camera.Update(pTimer);
+
+    if (m_IsRotating)
+    {
+        auto yawAngle = (cos(pTimer->GetTotal()) + 1.f) / 2.f * PI_2;
+        m_MatrixRot = Matrix::CreateRotationY(yawAngle);
+    }
 }
 
 void Renderer::Render()
@@ -94,6 +100,11 @@ void Renderer::Render()
 
             // Skip if any vertex is behind the camera (w < 0)
             if (v0.w < 0 || v1.w < 0 || v2.w < 0) continue;
+            
+            if ((v0.x < -1  || v0.x > 1) || (v1.x < -1 || v1.x > 1) || (v2.x < -1 || v2.x > 1)
+                || ((v0.y < -1 || v0.y > 1) || (v1.y < -1 || v1.y > 1) || (v2.y < -1 || v2.y > 1))
+                || ((v0.z < 0 || v0.z > 1) || (v1.z < 0 || v1.z > 1) || (v2.z < 0 || v2.z > 1))) continue;
+
 
             // Backface culling (skip if the triangle is facing away from the camera)
             Vector3 edge0 = v1 - v0;
@@ -104,10 +115,6 @@ void Renderer::Render()
             //if ((mesh.vertices_out[t0].normal.z + mesh.vertices_out[t1].normal.z + mesh.vertices_out[t2].normal.z) / 3.f <= 0) continue;
 
             // Transform coordinates to screen space
-
-            if ((v0.x < -1  || v0.x > 1) || (v1.x < -1 || v1.x > 1) || (v2.x < -1 || v2.x > 1)
-                || ((v0.y < -1 || v0.y > 1) || (v1.y < -1 || v1.y > 1) || (v2.y < -1 || v2.y > 1))
-                || ((v0.z < 0 || v0.z > 1) || (v1.z < 0 || v1.z > 1) || (v2.z < 0 || v2.z > 1))) continue;
 
             v0.x *= m_Width;
             v1.x *= m_Width;
@@ -176,6 +183,7 @@ void Renderer::Render()
 
                     int pixelIndex = px + (py * m_Width);
                     if (zBufferValue >= m_pDepthBufferPixels[pixelIndex]) continue;
+                    //PixelShading(mesh.vertices_out);
 
                     m_pDepthBufferPixels[pixelIndex] = zBufferValue;
 
@@ -215,23 +223,20 @@ void Renderer::Render()
 
 void Renderer::VertexTransformationFunction(Mesh& mesh) const
 {
+
     // Precompute transformation matrix
-    auto overallMatrix = mesh.worldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
+    auto rotatedWorldMatrix = m_MatrixRot * mesh.worldMatrix;
+    auto overallMatrix = rotatedWorldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
 
     // Resize vertices_out to match input vertices
     mesh.vertices_out.resize(mesh.vertices.size());
-
-    Matrix matrixRot = Matrix::CreateRotationY(PI_4);
-
+    
     // Transform vertices in parallel
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
 
-        if (m_IsRotating)
-        {
-            mesh.worldMatrix *= matrixRot;
-        }
-        Vector3 rotVector = (mesh.worldMatrix.GetAxisX(), mesh.worldMatrix.GetAxisY(), mesh.worldMatrix.GetAxisZ());
+        //mesh.worldMatrix *= m_MatrixRot;
+        mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformPoint(mesh.vertices[i].normal.ToVector4());
 
         Vector4 viewSpacePosition = overallMatrix.TransformPoint(mesh.vertices[i].position.ToVector4());
 
@@ -244,13 +249,17 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
         mesh.vertices_out[i].position = projectionSpacePosition;
         mesh.vertices_out[i].color = mesh.vertices[i].color;
 
-        mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
-        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent * rotVector;
+        //mesh.vertices_out[i].normal = mesh.vertices[i].normal * rotVector;
+        //mesh.vertices_out[i].tangent = mesh.vertices[i].tangent * rotVector;
 
         mesh.vertices_out[i].viewDirection = mesh.vertices[i].viewDirection;
-
-        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
     }
+}
+
+void dae::Renderer::PixelShading(const Vertex_Out& v)
+{
+    Vector3 lightDirection = { .577f, -.577f,  .577f };
+
 }
 
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
