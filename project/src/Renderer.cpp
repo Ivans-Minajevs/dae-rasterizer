@@ -225,17 +225,19 @@ void Renderer::Render()
                         mesh.vertices_out[t1].normal * v0.w * v2.w * interpolationScale1 +
                         mesh.vertices_out[t2].normal * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
-                    pixelVertex.normal = pixelVertex.normal.Normalized();
+                    pixelVertex.normal.Normalize();
 
                     pixelVertex.tangent = (mesh.vertices_out[t0].tangent * v1.w * v2.w * interpolationScale0 +
                         mesh.vertices_out[t1].tangent * v0.w * v2.w * interpolationScale1 +
                         mesh.vertices_out[t2].tangent * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
+                    pixelVertex.tangent.Normalize();
 
                     pixelVertex.viewDirection = (mesh.vertices_out[t0].viewDirection * v1.w * v2.w * interpolationScale0 +
                         mesh.vertices_out[t1].viewDirection * v0.w * v2.w * interpolationScale1 +
                         mesh.vertices_out[t2].viewDirection * v0.w * v1.w * interpolationScale2) *
                         interpolatedDepth / wProduct;
+                    pixelVertex.viewDirection.Normalize();
 
                     pixelVertex.color = colors::Black;
 
@@ -334,7 +336,7 @@ void Renderer::PixelShading(Vertex_Out& v)
         Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero };
 
         const ColorRGB normalColor = m_NormalMapTexture->Sample(v.uv);
-        v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f)).Normalized());
+        v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f))).Normalized();
     }
  
     float cosOfAngle{ Vector3::Dot(v.normal.Normalized(), -lightDirection.Normalized())};
@@ -348,7 +350,7 @@ void Renderer::PixelShading(Vertex_Out& v)
     ColorRGB gloss = m_GlossTexture->Sample(v.uv);
     float exp = gloss.r * shininess;
 
-    ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
+    ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection.Normalized(), v.viewDirection.Normalized(), v.normal.Normalized());
 
     switch (m_CurrentShadingMode)
     {
@@ -361,14 +363,15 @@ void Renderer::PixelShading(Vertex_Out& v)
         break;
 
     case ShadingMode::Specular:
-        v.color += specular * observedArea;
+        v.color += specular;
         break;
 
     case ShadingMode::Combined:
         v.color += specular + diffuse * observedArea * lightIntensity;
+        v.color += ambient;
         break;
     }
-    v.color += ambient;
+   
 }
 
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
