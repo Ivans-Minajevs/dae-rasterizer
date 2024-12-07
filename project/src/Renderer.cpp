@@ -60,14 +60,16 @@ Renderer::~Renderer()
 
 void Renderer::Update(Timer* pTimer)
 {
+
     m_Camera.Update(pTimer);
 
-    float yawAngle;
+
     if (m_IsRotating)
     {
-        yawAngle  = (pTimer->GetTotal() * PI / 4);
-        m_MatrixRot = Matrix::CreateRotationY(yawAngle);
+        m_YawAngle += PI / 90;
+        m_MatrixRot = Matrix::CreateRotationY(m_YawAngle);
     }
+   
 }
 
 void Renderer::Render()
@@ -186,9 +188,9 @@ void Renderer::Render()
 
                     if (zBufferValue < 0 || zBufferValue > 1) continue;
 
-                   // float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
-                   //     v0.z * v2.z * interpolationScale1 +
-                   //     v0.z * v1.z * interpolationScale2);
+                    // float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
+                    //     v0.z * v2.z * interpolationScale1 +
+                    //     v0.z * v1.z * interpolationScale2);
 
                     int pixelIndex = px + (py * m_Width);
                     if (zBufferValue >= m_pDepthBufferPixels[pixelIndex]) continue;
@@ -205,14 +207,18 @@ void Renderer::Render()
                     // Texture sampling
                     Vertex_Out pixelVertex;
 
-                    //pixelVertex.position = (mesh.vertices[t0].position.ToVector4() * v1.w * v2.w * interpolationScale0 +
-                    //    mesh.vertices[t1].position.ToVector4() * v0.w * v2.w * interpolationScale1 +
-                    //    mesh.vertices[t2].position.ToVector4() * v0.w * v1.w * interpolationScale2)*
-                    //    interpolatedDepth / wProduct;
-                    //
-                    //pixelVertex.position.z = zBufferValue;
-                    //pixelVertex.position.w = interpolatedDepth;
-                   pixelVertex.position = { P.x, P.y, zBufferValue, interpolatedDepth };
+                    pixelVertex.position = (mesh.vertices[t0].position.ToPoint4() + mesh.vertices[t1].position.ToPoint4() + mesh.vertices[t2].position.ToPoint4()) / 3.f;
+
+                        //pixelVertex.position = (mesh.vertices[t0].position.ToVector4() * v1.w * v2.w * interpolationScale0 +
+                        //    mesh.vertices[t1].position.ToVector4() * v0.w * v2.w * interpolationScale1 +
+                        //    mesh.vertices[t2].position.ToVector4() * v0.w * v1.w * interpolationScale2)*
+                        //    interpolatedDepth / wProduct;
+                        //
+                        //pixelVertex.position.z = zBufferValue;
+                        //pixelVertex.position.w = interpolatedDepth;
+
+                    pixelVertex.position.z = zBufferValue;
+                    pixelVertex.position.w = interpolatedDepth;
                     
 
 
@@ -281,7 +287,11 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
 {
 
     // Precompute transformation matrix
+  
     auto rotatedWorldMatrix = m_MatrixRot * mesh.worldMatrix;
+    
+  
+   
     auto overallMatrix = rotatedWorldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
 
     // Resize vertices_out to match input vertices
@@ -297,7 +307,7 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
         mesh.vertices_out[i].tangent = rotatedWorldMatrix.TransformVector(mesh.vertices[i].tangent).Normalized();
        
       
-        auto rotatedWorldPosition = rotatedWorldMatrix.TransformVector(mesh.vertices[i].position);
+        auto rotatedWorldPosition = rotatedWorldMatrix.TransformPoint(mesh.vertices[i].position);
         mesh.vertices_out[i].viewDirection = rotatedWorldPosition - m_Camera.origin;
         mesh.vertices_out[i].viewDirection.Normalize();
 
@@ -314,10 +324,6 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
         mesh.vertices_out[i].position = projectionSpacePosition;
         mesh.vertices_out[i].color = mesh.vertices[i].color;
         mesh.vertices_out[i].uv = mesh.vertices[i].uv;
-
-        mesh.vertices_out[i].tangent = mesh.vertices[i].tangent;
-
-       
     }
 }
 
@@ -333,24 +339,24 @@ void Renderer::PixelShading(Vertex_Out& v)
     if (m_IsNormalMap)
     {
         Vector3 binormal = Vector3::Cross(v.normal, v.tangent);
-        Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero };
+        Matrix tangentSpaceAxis = Matrix{ v.tangent, binormal, v.normal, Vector3::Zero};
 
-        const ColorRGB normalColor = m_NormalMapTexture->Sample(v.uv);
-        v.normal = tangentSpaceAxis.TransformVector((2.f * Vector3(normalColor.r, normalColor.g, normalColor.b) - Vector3(1.f, 1.f, 1.f))).Normalized();
+        ColorRGB normalMapSample = m_NormalMapTexture->Sample(v.uv);
+        v.normal = (v.tangent * (2.f * normalMapSample.r - 1.f) + binormal * (2.f * normalMapSample.g - 1.f) + v.normal * (2.f * normalMapSample.b - 1.f)).Normalized();
     }
  
-    float cosOfAngle{ Vector3::Dot(v.normal.Normalized(), -lightDirection.Normalized())};
+    float cosOfAngle{ Vector3::Dot(v.normal, -lightDirection)};
 
     if (cosOfAngle < 0.f) return;
 
-    const ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
+    ColorRGB observedArea = { cosOfAngle, cosOfAngle, cosOfAngle };
     
     ColorRGB diffuse = Lambert(m_DiffuseTexture->Sample(v.uv));
 
     ColorRGB gloss = m_GlossTexture->Sample(v.uv);
     float exp = gloss.r * shininess;
 
-    ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection.Normalized(), v.viewDirection.Normalized(), v.normal.Normalized());
+    ColorRGB specular = Phong(m_SpecularTexture->Sample(v.uv), exp, -lightDirection, v.viewDirection, v.normal);
 
     switch (m_CurrentShadingMode)
     {
@@ -367,11 +373,10 @@ void Renderer::PixelShading(Vertex_Out& v)
         break;
 
     case ShadingMode::Combined:
-        v.color += specular + diffuse * observedArea * lightIntensity;
-        v.color += ambient;
+        v.color += ambient + specular + diffuse * observedArea * lightIntensity;
         break;
     }
-   
+    
 }
 
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
