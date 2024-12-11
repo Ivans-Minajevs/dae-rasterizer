@@ -46,7 +46,7 @@ namespace dae
 			float v0PlaneValue, float v1PlaneValue);
 
 		float PlaneValue(const Vector4& vertex, const Vector4& plane) {
-			return vertex.x * plane.x + vertex.y * plane.y + vertex.z * plane.z + vertex.w * plane.w;
+			return vertex.x * plane.x + vertex.y * plane.y + vertex.z * plane.z + plane.w;
 		}
 
 		inline float Remap(float value, float start1, float stop1, float start2, float stop2)
@@ -156,12 +156,12 @@ namespace dae
 	private:
 
 		ShadingMode m_CurrentShadingMode{ ShadingMode::Combined };
-		DisplayMode m_CurrentDisplayMode{ DisplayMode::FinalColor };
+		DisplayMode m_CurrentDisplayMode{ DisplayMode::ShadingMode };
 
 		SDL_Window* m_pWindow{};
 		bool m_IsFinalColor { true };
 		bool m_IsRotating{ true };
-		bool m_IsNormalMap{ false };
+		bool m_IsNormalMap{ true };
 
 		Texture* m_DiffuseTexture;
 		Texture* m_NormalMapTexture;

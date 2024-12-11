@@ -43,7 +43,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_MeshesWorld.emplace_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 45.f, { 0.f, 5.f , -64.f });
+    m_Camera.Initialize(m_Width, m_Height, 45.f, { 0.f, 5.f, -64.f });
 
     // Number of threads for OpenMP
     omp_set_num_threads(omp_get_max_threads());
@@ -100,6 +100,13 @@ void Renderer::Render()
             auto t1 = mesh.indices[inx + 1];
             auto t2 = mesh.indices[inx + 2];
 
+            ////Perform clipping 
+            //std::vector<Vertex_Out> clippedVertices;
+            //std::vector<uint32_t> clippedIndices;
+            //ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
+            //
+            //if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
+
             // Skip degenerate triangles
             if (t0 == t1 || t1 == t2 || t2 == t0) continue;
 
@@ -121,11 +128,9 @@ void Renderer::Render()
             Vector3 edge1 = v2 - v0;
             Vector3 normal = Vector3::Cross(edge0, edge1);
             if (normal.z <= 0) continue;
-            
-            //if ((mesh.vertices_out[t0].normal.z + mesh.vertices_out[t1].normal.z + mesh.vertices_out[t2].normal.z) / 3.f <= 0) continue;
+           
 
             // Transform coordinates to screen space
-
             v0.x *= m_Width;
             v1.x *= m_Width;
             v2.x *= m_Width;
@@ -150,14 +155,9 @@ void Renderer::Render()
 
             float wProduct = v0.w * v1.w * v2.w;
 
-            //Perform clipping 
-            //std::vector<Vertex_Out> clippedVertices;
-            //std::vector<uint32_t> clippedIndices;
-            //ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
-            //
-            //if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
+            
 
-            // Parallelize over rows of pixels (py)
+// Parallelize over rows of pixels (py)
 #pragma omp parallel for
             for (int py = minY; py < maxY; ++py) {
                 for (int px = minX; px < maxX; ++px) {
@@ -358,34 +358,33 @@ void Renderer::PixelShading(Vertex_Out& v)
 void Renderer::ClipTriangle(const Vertex_Out& v0, const Vertex_Out& v1, const Vertex_Out& v2,
     std::vector<Vertex_Out>& clippedVertices, std::vector<uint32_t>& clippedIndices)
 {
-    // Initialize clippedVertices directly with the input triangle vertices
+    // Start with the input triangle vertices
     clippedVertices.clear();
     clippedVertices.push_back(v0);
     clippedVertices.push_back(v1);
     clippedVertices.push_back(v2);
 
     std::vector<Vector4> planes = {
-        Vector4(1, 0, 0, 1),  // Left Plane: x + w >= 0
-        Vector4(-1, 0, 0, 1), // Right Plane: -x + w >= 0
-        Vector4(0, 1, 0, 1),  // Bottom Plane: y + w >= 0
-        Vector4(0, -1, 0, 1), // Top Plane: -y + w >= 0
-        Vector4(0, 0, 1, 1),  // Near Plane: z + w >= 0
-        Vector4(0, 0, -1, 1)  // Far Plane: -z + w >= 0
+        Vector4(1, 0, 0, 1),   // Left Plane: x + 0.5 >= 0
+        Vector4(-1, 0, 0, 1),  // Right Plane: -x + 0.5 >= 0
+        Vector4(0, 1, 0, 1),   // Bottom Plane: y + 0.5 >= 0
+        Vector4(0, -1, 0, 1),  // Top Plane: -y + 0.5 >= 0
+        Vector4(0, 0, 1, 1),   // Near Plane: z + 0.5 >= 0
+        Vector4(0, 0, -1, 1)   // Far Plane: -z + 0.5 >= 0
     };
 
-    // Loop over planes, and clip the triangle
+    // Sequentially clip the triangle against each plane
     for (const auto& plane : planes)
     {
         std::vector<Vertex_Out> outputVertices;
-        outputVertices.reserve(clippedVertices.size()); // Reserve space to avoid reallocations
+        outputVertices.reserve(clippedVertices.size());
 
-        // Clip the polygon against the current plane
+        // Clip the current polygon against the plane
         ClipPolygonAgainstPlane(clippedVertices, outputVertices, plane);
 
         // If after clipping, there are fewer than 3 vertices, discard the triangle
         if (outputVertices.size() < 3) return;
 
-        // Reuse clippedVertices for the next iteration
         clippedVertices = std::move(outputVertices);
     }
 
@@ -407,7 +406,7 @@ void Renderer::ClipPolygonAgainstPlane(std::vector<Vertex_Out>& inputVertices,
 
     size_t vertexCount = inputVertices.size();
     outputVertices.clear();
-    outputVertices.reserve(vertexCount);  // Reserve memory upfront to avoid reallocations
+    outputVertices.reserve(vertexCount);
 
     // Process each edge of the polygon
     for (size_t i = 0; i < vertexCount; ++i)
@@ -415,7 +414,6 @@ void Renderer::ClipPolygonAgainstPlane(std::vector<Vertex_Out>& inputVertices,
         const Vertex_Out& currentVertex = inputVertices[i];
         const Vertex_Out& nextVertex = inputVertices[(i + 1) % vertexCount];
 
-        // Calculate plane values for current and next vertices
         float currentValue = PlaneValue(currentVertex.position, plane);
         float nextValue = PlaneValue(nextVertex.position, plane);
 
@@ -434,28 +432,30 @@ void Renderer::ClipPolygonAgainstPlane(std::vector<Vertex_Out>& inputVertices,
     }
 }
 
-
-
 Vertex_Out Renderer::IntersectEdgeWithPlane(const Vertex_Out& v0, const Vertex_Out& v1,
     float v0PlaneValue, float v1PlaneValue)
 {
-    // Compute intersection ratio t between the two vertices
+    float denominator = v0PlaneValue - v1PlaneValue;
+
+    if (fabs(denominator) < 1e-6) return v0;  // Avoid division by zero
+
     float t = v0PlaneValue / (v0PlaneValue - v1PlaneValue);
 
-    Vertex_Out intersection;
+    if (t < 0 || t > 1) return v0;  // Disregard invalid intersections
 
-    // Compute position
+    Vertex_Out intersection;
     intersection.position = v0.position + (t * (v1.position - v0.position)).ToVector4();
 
-    // Interpolate other attributes (color, uv, normal, etc.)
+    // Interpolate other attributes (color, UV, normal)
     intersection.color = v0.color + t * (v1.color - v0.color);
     intersection.uv = v0.uv + t * (v1.uv - v0.uv);
     intersection.normal = v0.normal + t * (v1.normal - v0.normal);
     intersection.tangent = v0.tangent + t * (v1.tangent - v0.tangent);
-    intersection.viewDirection = v0.viewDirection + t * (v1.viewDirection - v0.viewDirection);
 
     return intersection;
 }
+
+
 
 
 bool Renderer::SaveBufferToImage() const
