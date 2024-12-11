@@ -49,6 +49,7 @@ namespace dae
 			return vertex.x * plane.x + vertex.y * plane.y + vertex.z * plane.z + vertex.w * plane.w;
 		}
 
+		
 
 		void PixelShading(Vertex_Out& v);
 

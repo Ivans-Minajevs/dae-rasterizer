@@ -43,10 +43,10 @@ Renderer::Renderer(SDL_Window* pWindow) :
     m_MeshesWorld.emplace_back(meshRef);
 
     // Initialize Camera
-    m_Camera.Initialize(m_Width, m_Height, 45.f, { 0.f, 0.f , -50.f });
+    m_Camera.Initialize(m_Width, m_Height, 45.f, { 0.f, 5.f , -64.f });
 
-    // Set number of threads for OpenMP
-    omp_set_num_threads(4); // Adjust as needed
+    // Number of threads for OpenMP
+    omp_set_num_threads(omp_get_max_threads());
 }
 
 Renderer::~Renderer()
@@ -74,7 +74,7 @@ void Renderer::Update(Timer* pTimer)
 
 void Renderer::Render()
 {
-    //@START: Reset depth buffer and clear screen
+    // Reset depth buffer and clear screen
     std::fill(m_pDepthBufferPixels, m_pDepthBufferPixels + (m_Width * m_Height), std::numeric_limits<float>::max());
 
     // Clear screen with black color
@@ -87,7 +87,7 @@ void Renderer::Render()
 
     // RENDER LOGIC
     for (Mesh& mesh : m_MeshesWorld) {
-        // Apply transformations (Camera, world, projection)
+        // Apply transformations
         VertexTransformationFunction(mesh);
 
         bool isTriangleList = (mesh.primitiveTopology == PrimitiveTopology::TriangleList);
@@ -150,7 +150,7 @@ void Renderer::Render()
 
             float wProduct = v0.w * v1.w * v2.w;
 
-            // Perform clipping (if needed)
+            //Perform clipping 
             std::vector<Vertex_Out> clippedVertices;
             std::vector<uint32_t> clippedIndices;
             ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
@@ -208,47 +208,29 @@ void Renderer::Render()
                     Vertex_Out pixelVertex;
 
                     pixelVertex.position = (mesh.vertices[t0].position.ToPoint4() + mesh.vertices[t1].position.ToPoint4() + mesh.vertices[t2].position.ToPoint4()) / 3.f;
-
-                        //pixelVertex.position = (mesh.vertices[t0].position.ToVector4() * v1.w * v2.w * interpolationScale0 +
-                        //    mesh.vertices[t1].position.ToVector4() * v0.w * v2.w * interpolationScale1 +
-                        //    mesh.vertices[t2].position.ToVector4() * v0.w * v1.w * interpolationScale2)*
-                        //    interpolatedDepth / wProduct;
-                        //
-                        //pixelVertex.position.z = zBufferValue;
-                        //pixelVertex.position.w = interpolatedDepth;
-
                     pixelVertex.position.z = zBufferValue;
                     pixelVertex.position.w = interpolatedDepth;
                     
 
+                    pixelVertex.uv = Vector2::Interpolate(mesh.vertices_out[t0].uv, mesh.vertices_out[t1].uv, mesh.vertices_out[t2].uv,
+                        v0.w, v1.w, v2.w, interpolationScale0, interpolationScale1, interpolationScale2, interpolatedDepth, wProduct);
 
-                    pixelVertex.uv = (mesh.vertices_out[t0].uv * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices_out[t1].uv * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices_out[t2].uv * v0.w * v1.w * interpolationScale2) *
-                        interpolatedDepth / wProduct;
-
-                    pixelVertex.normal = (mesh.vertices_out[t0].normal * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices_out[t1].normal * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices_out[t2].normal * v0.w * v1.w * interpolationScale2) *
-                        interpolatedDepth / wProduct;
+                    pixelVertex.normal = Vector3::Interpolate(mesh.vertices_out[t0].normal, mesh.vertices_out[t1].normal, mesh.vertices_out[t2].normal,
+                        v0.w, v1.w, v2.w, interpolationScale0, interpolationScale1, interpolationScale2, interpolatedDepth, wProduct);
                     pixelVertex.normal.Normalize();
 
-                    pixelVertex.tangent = (mesh.vertices_out[t0].tangent * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices_out[t1].tangent * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices_out[t2].tangent * v0.w * v1.w * interpolationScale2) *
-                        interpolatedDepth / wProduct;
+
+                    pixelVertex.tangent = Vector3::Interpolate(mesh.vertices_out[t0].tangent, mesh.vertices_out[t1].tangent, mesh.vertices_out[t2].tangent,
+                        v0.w, v1.w, v2.w, interpolationScale0, interpolationScale1, interpolationScale2, interpolatedDepth, wProduct);
                     pixelVertex.tangent.Normalize();
 
-                    pixelVertex.viewDirection = (mesh.vertices_out[t0].viewDirection * v1.w * v2.w * interpolationScale0 +
-                        mesh.vertices_out[t1].viewDirection * v0.w * v2.w * interpolationScale1 +
-                        mesh.vertices_out[t2].viewDirection * v0.w * v1.w * interpolationScale2) *
-                        interpolatedDepth / wProduct;
+                    pixelVertex.viewDirection = Vector3::Interpolate(mesh.vertices_out[t0].viewDirection, mesh.vertices_out[t1].viewDirection, mesh.vertices_out[t2].viewDirection,
+                        v0.w, v1.w, v2.w, interpolationScale0, interpolationScale1, interpolationScale2, interpolatedDepth, wProduct);
                     pixelVertex.viewDirection.Normalize();
 
                     pixelVertex.color = colors::Black;
 
                     // If texture mapping is enabled, sample the texture
-
                     if (m_CurrentDisplayMode == DisplayMode::FinalColor)
                     {
                         finalColor = m_DiffuseTexture->Sample(pixelVertex.uv);
@@ -289,9 +271,6 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     // Precompute transformation matrix
   
     auto rotatedWorldMatrix = m_MatrixRot * mesh.worldMatrix;
-    
-  
-   
     auto overallMatrix = rotatedWorldMatrix * m_Camera.viewMatrix * m_Camera.projectionMatrix;
 
     // Resize vertices_out to match input vertices
@@ -300,8 +279,6 @@ void Renderer::VertexTransformationFunction(Mesh& mesh) const
     // Transform vertices in parallel
 #pragma omp parallel for
     for (size_t i = 0; i < mesh.vertices.size(); ++i) {
-
-        //mesh.worldMatrix *= m_MatrixRot;
         mesh.vertices_out[i].normal = rotatedWorldMatrix.TransformVector(mesh.vertices[i].normal).Normalized();
 
         mesh.vertices_out[i].tangent = rotatedWorldMatrix.TransformVector(mesh.vertices[i].tangent).Normalized();
@@ -332,9 +309,9 @@ void Renderer::PixelShading(Vertex_Out& v)
    // ColorRGB tempColor{ ColorRGB(0.f, 0.f, 0.f)};
 
     Vector3 lightDirection = { .577f, -.577f,  .577f }; 
-    float lightIntensity = 7.f;
-    float shininess = 25.f;
-    ColorRGB ambient = { .025f,.025f,.025f };
+    constexpr float lightIntensity = 7.f;
+    constexpr float shininess = 25.f;
+    constexpr ColorRGB ambient = { .025f,.025f,.025f };
    
     if (m_IsNormalMap)
     {
