@@ -66,8 +66,8 @@ void Renderer::Update(Timer* pTimer)
 
     if (m_IsRotating)
     {
-        m_YawAngle += PI / 90;
-        m_MatrixRot = Matrix::CreateRotationY(m_YawAngle);
+       
+        m_MatrixRot *= Matrix::CreateRotationY(pTimer->GetElapsed());
     }
    
 }
@@ -151,11 +151,11 @@ void Renderer::Render()
             float wProduct = v0.w * v1.w * v2.w;
 
             //Perform clipping 
-            std::vector<Vertex_Out> clippedVertices;
-            std::vector<uint32_t> clippedIndices;
-            ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
-            
-            if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
+            //std::vector<Vertex_Out> clippedVertices;
+            //std::vector<uint32_t> clippedIndices;
+            //ClipTriangle(mesh.vertices_out[t0], mesh.vertices_out[t1], mesh.vertices_out[t2], clippedVertices, clippedIndices);
+            //
+            //if (clippedVertices.size() < 3) continue; // If there are not enough vertices left after clipping, skip this triangle
 
             // Parallelize over rows of pixels (py)
 #pragma omp parallel for
@@ -188,9 +188,7 @@ void Renderer::Render()
 
                     if (zBufferValue < 0 || zBufferValue > 1) continue;
 
-                    // float zBufferValue = v0.z * v1.z * v2.z / (v1.z * v2.z * interpolationScale0 +
-                    //     v0.z * v2.z * interpolationScale1 +
-                    //     v0.z * v1.z * interpolationScale2);
+        
 
                     int pixelIndex = px + (py * m_Width);
                     if (zBufferValue >= m_pDepthBufferPixels[pixelIndex]) continue;
@@ -237,7 +235,8 @@ void Renderer::Render()
                     }
                     if (m_CurrentDisplayMode == DisplayMode::DepthBuffer)
                     {
-                        finalColor = ColorRGB(zBufferValue, zBufferValue, zBufferValue);
+                        auto clampedValue = Remap(zBufferValue, 0.8f, 1.f, 0.f, 1.f);
+                        finalColor = ColorRGB(clampedValue, clampedValue, clampedValue);
                     }
                     if (m_CurrentDisplayMode == DisplayMode::ShadingMode)
                     {

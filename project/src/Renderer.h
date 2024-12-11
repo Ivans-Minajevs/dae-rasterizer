@@ -49,7 +49,10 @@ namespace dae
 			return vertex.x * plane.x + vertex.y * plane.y + vertex.z * plane.z + vertex.w * plane.w;
 		}
 
-		
+		inline float Remap(float value, float start1, float stop1, float start2, float stop2)
+		{
+			return start2 + (value - start1) * (stop2 - start2) / (stop1 - start1);
+		}
 
 		void PixelShading(Vertex_Out& v);
 
