@@ -105,15 +105,19 @@ namespace dae
 			switch (m_CurrentShadingMode)
 			{
 			case ShadingMode::Combined:
+				std::cout << "Current shading mode: OBSERVED AREA" << std::endl;
 				m_CurrentShadingMode = ShadingMode::ObservedArea;
 				break;
 			case ShadingMode::ObservedArea:
+				std::cout << "Current shading mode: DIFFUSE" << std::endl;
 				m_CurrentShadingMode = ShadingMode::Diffuse;
 				break;
 			case ShadingMode::Diffuse:
+				std::cout << "Current shading mode: SPECULAR" << std::endl;
 				m_CurrentShadingMode = ShadingMode::Specular;
 				break;
 			case ShadingMode::Specular:
+				std::cout << "Current shading mode: COMBINED" << std::endl;
 				m_CurrentShadingMode = ShadingMode::Combined;
 				break;
 			}

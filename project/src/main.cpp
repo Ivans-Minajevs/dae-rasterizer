@@ -72,34 +72,42 @@ int main(int argc, char* args[])
 					takeScreenshot = true;
 
 				if (e.key.keysym.scancode == SDL_SCANCODE_F4)
+				{
 					
 					if(pRenderer->GetDisplayMode() == Renderer::DisplayMode::FinalColor)
 					{
+						std::cout << "Current display mode: DEPTH BUFFER" << std::endl;
 						pRenderer->SetDisplayMode(Renderer::DisplayMode::DepthBuffer);
 					}
 					else
 					{
+						std::cout << "Current display mode: FINAL COLOR" << std::endl;
 						pRenderer->SetDisplayMode(Renderer::DisplayMode::FinalColor);
 					}
-
+				}
 				if (e.key.keysym.scancode == SDL_SCANCODE_F5)
+				{
 					if (pRenderer->GetIsRotating())
 					{
+						std::cout << "Rotation: OFF" << std::endl;
 						pRenderer->SetIsRotating(false);
 					}
 					else
 					{
+						std::cout << "Rotation: ON" << std::endl;
 						pRenderer->SetIsRotating(true);
 					}
-		
+				}
 				if (e.key.keysym.scancode == SDL_SCANCODE_F6)
 				{
 					if (pRenderer->GetIsNormalMap())
 					{
+						std::cout << "Normal map: OFF" << std::endl;
 						pRenderer->SetIsNormalMap(false);
 					}
 					else
 					{
+						std::cout << "Normal map: ON" << std::endl;
 						pRenderer->SetIsNormalMap(true);
 					}
 					
@@ -107,8 +115,15 @@ int main(int argc, char* args[])
 
 				if (e.key.keysym.scancode == SDL_SCANCODE_F7)
 				{
-					pRenderer->SetDisplayMode(Renderer::DisplayMode::ShadingMode);
-					pRenderer->CycleShadingMode();
+					if (pRenderer->GetDisplayMode() == Renderer::DisplayMode::ShadingMode)
+					{
+						pRenderer->CycleShadingMode();
+					}
+					else
+					{
+						std::cout << "Current display mode: SHADING" << std::endl;
+						pRenderer->SetDisplayMode(Renderer::DisplayMode::ShadingMode);
+					}
 				}
 				break;
 			}
