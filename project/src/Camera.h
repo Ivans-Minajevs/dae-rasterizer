@@ -63,7 +63,7 @@ namespace dae
 		{
 			if (isProjectionMatrixDirty)
 			{
-				projectionMatrix = Matrix::CreatePerspectiveFovLH(fov, width / height, 1.f, 1000.f);
+				projectionMatrix = Matrix::CreatePerspectiveFovLH(fov, width / height, .1f, 100.f);
 				isProjectionMatrixDirty = false; // Reset flag after update
 			}
 		}

@@ -192,7 +192,6 @@ void Renderer::Render()
 
                     int pixelIndex = px + (py * m_Width);
                     if (zBufferValue >= m_pDepthBufferPixels[pixelIndex]) continue;
-                    //PixelShading(mesh.vertices_out);
 
                     m_pDepthBufferPixels[pixelIndex] = zBufferValue;
 
@@ -310,7 +309,7 @@ void Renderer::PixelShading(Vertex_Out& v)
     Vector3 lightDirection = { .577f, -.577f,  .577f }; 
     constexpr float lightIntensity = 7.f;
     constexpr float shininess = 25.f;
-    constexpr ColorRGB ambient = { .025f,.025f,.025f };
+    constexpr ColorRGB ambient = { .03f,.03f,.03f };
    
     if (m_IsNormalMap)
     {
